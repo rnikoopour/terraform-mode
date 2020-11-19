@@ -8,7 +8,7 @@ jobs:
       matrix:
         emacs_version: ["26.3", "27.1"]
     steps:
-      - run: echo "ACTIONS_ALLOW_UNSECURE_COMMANDS=true" >> $GITHUB_ENV
+      - run: echo "/home/runner/.cask/bin" >> $GITHUB_PATH
       - uses: purcell/setup-emacs@master
         with:
           version: ${{ matrix.emacs_version }}
