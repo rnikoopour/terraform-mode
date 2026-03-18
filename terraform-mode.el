@@ -64,8 +64,20 @@
   (rx line-start (zero-or-more space)
       (group (or "backend" "provider_meta"))
       (one-or-more space)
-      (group "\"" (one-or-more (not (any "\""))) "\"")
+      (group (group "\"") (one-or-more (not (any "\""))) (group "\""))
       (zero-or-more space) "{"))
+
+(defun terraform-mode--syntax-propertize (start end)
+  "Mark type argument quotes in builtin-with-type blocks as punctuation.
+This prevents them from receiving `font-lock-string-face' during syntactic
+fontification, allowing `font-lock-type-face' to be applied without override."
+  (goto-char start)
+  (funcall
+   (syntax-propertize-rules
+    (terraform-mode--block-builtins-with-type
+     (3 ".")
+     (4 ".")))
+   start end))
 
 (defconst terraform-mode--provider
   (rx line-start (zero-or-more space) (group (one-or-more word)) (one-or-more space) "{"))
@@ -87,6 +99,7 @@
 (defun terraform-mode--match-depth-2-builtin (limit)
   (terraform-mode--match-builtin-at-depth terraform-mode--block-builtins-depth-2 2 limit))
 
+
 (defconst terraform-mode--required-providers-block
   (rx line-start (zero-or-more space) "required_providers" (zero-or-more space) "{"))
 
@@ -104,7 +117,7 @@
     ,terraform-mode--provider-anchor
     (,terraform-mode--block-builtins-with-type
      (1 font-lock-builtin-face)
-     (2 font-lock-type-face t))
+     (2 font-lock-type-face))
     (,terraform-mode--variable 1 font-lock-variable-name-face)))
 
 ;;;###autoload
@@ -113,7 +126,8 @@
   :syntax-table terraform-mode-syntax-table
   (setq-local comment-start "#")
   (setq-local comment-end "")
-  (setq-local font-lock-defaults '(terraform-mode--font-lock-keywords nil nil)))
+  (setq-local font-lock-defaults '(terraform-mode--font-lock-keywords nil nil))
+  (setq-local syntax-propertize-function #'terraform-mode--syntax-propertize))
 
 ;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.tf\\'" . terraform-mode))

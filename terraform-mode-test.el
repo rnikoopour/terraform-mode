@@ -181,5 +181,11 @@
   (terraform-test-with-buffer "provider_meta \"foo\" {}"
     (should (eq (get-text-property 15 'face) 'font-lock-type-face))))
 
+(ert-deftest terraform-mode-builtin-with-type-in-comment ()
+  "builtin-with-type inside a block comment is not highlighted."
+  ;; /* = 3 chars, so backend starts at position 4
+  (terraform-test-with-buffer "/* backend \"s3\" {} */"
+    (should-not (eq (get-text-property 4 'face) 'font-lock-builtin-face))))
+
 (provide 'terraform-mode-test)
 ;;; terraform-mode-test.el ends here
