@@ -148,5 +148,13 @@
   (terraform-test-with-buffer "terraform {\ncloud {\nworkspaces {}\n}\n}"
     (should (eq (get-text-property 21 'face) 'font-lock-builtin-face))))
 
+;;; Font-lock types
+
+(ert-deftest terraform-mode-provider ()
+  "Provider name inside required_providers gets type face."
+  ;; terraform {\n = 12 chars, required_providers {\n = 21 chars, so aws starts at 34
+  (terraform-test-with-buffer "terraform {\nrequired_providers {\naws {\n}\n}\n}"
+    (should (eq (get-text-property 34 'face) 'font-lock-type-face))))
+
 (provide 'terraform-mode-test)
 ;;; terraform-mode-test.el ends here

@@ -60,6 +60,9 @@
 (defconst terraform-mode--block-builtins-depth-2
   (rx line-start (zero-or-more space) (group "workspaces")))
 
+(defconst terraform-mode--provider
+  (rx line-start (zero-or-more space) (group (one-or-more word)) (one-or-more space) "{"))
+
 (defconst terraform-mode--variable
   (rx line-start (zero-or-more space) (group (one-or-more word)) (zero-or-more space) "="))
 
@@ -77,10 +80,21 @@
 (defun terraform-mode--match-depth-2-builtin (limit)
   (terraform-mode--match-builtin-at-depth terraform-mode--block-builtins-depth-2 2 limit))
 
+(defconst terraform-mode--required-providers-block
+  (rx line-start (zero-or-more space) "required_providers" (zero-or-more space) "{"))
+
+(defconst terraform-mode--provider-anchor
+  `(,terraform-mode--required-providers-block
+    (,terraform-mode--provider
+     (save-excursion (backward-char) (condition-case nil (forward-sexp) (error nil)) (point))
+     nil
+     (1 font-lock-type-face))))
+
 (defconst terraform-mode--font-lock-keywords
   `((terraform-mode--match-depth-0-builtin 1 font-lock-builtin-face)
     (terraform-mode--match-depth-1-builtin 1 font-lock-builtin-face)
     (terraform-mode--match-depth-2-builtin 1 font-lock-builtin-face)
+    ,terraform-mode--provider-anchor
     (,terraform-mode--variable 1 font-lock-variable-name-face)))
 
 ;;;###autoload
