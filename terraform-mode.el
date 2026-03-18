@@ -37,6 +37,8 @@
     (modify-syntax-entry ?\n "> b" table)
     (modify-syntax-entry ?/ ". 124b" table)
     (modify-syntax-entry ?* ". 23" table)
+    ;; _ is a word constituent
+    (modify-syntax-entry ?_ "w" table)
     ;; strings
     (modify-syntax-entry ?\" "\"" table)
     ;; brackets
@@ -49,13 +51,23 @@
     table)
   "Syntax table for `terraform-mode'.")
 
+(defconst terraform-mode--block-builtins-no-type-or-name
+  (rx line-start (zero-or-more space) (group "terraform")))
+
+(defconst terraform-mode--variable
+  (rx line-start (zero-or-more space) (group (one-or-more word)) (zero-or-more space) "="))
+
+(defconst terraform-mode--font-lock-keywords
+  `((,terraform-mode--block-builtins-no-type-or-name 1 font-lock-builtin-face)
+    (,terraform-mode--variable 1 font-lock-variable-name-face)))
+
 ;;;###autoload
 (define-derived-mode terraform-mode prog-mode "Terraform"
   "Major mode for editing Terraform files."
   :syntax-table terraform-mode-syntax-table
   (setq-local comment-start "#")
   (setq-local comment-end "")
-  (setq-local font-lock-defaults '(nil nil nil)))
+  (setq-local font-lock-defaults '(terraform-mode--font-lock-keywords nil nil)))
 
 ;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.tf\\'" . terraform-mode))

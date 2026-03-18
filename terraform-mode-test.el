@@ -106,5 +106,29 @@
     (goto-char 1)
     (should (equal (char-before (scan-sexps 1 1)) ?\)))))
 
+;;; Font-lock variables
+
+(ert-deftest terraform-mode-variable ()
+  "Assignment target gets variable face."
+  (terraform-test-with-buffer "this_is_a_variable = \"some value\""
+    (should (eq (get-text-property 1 'face) 'font-lock-variable-name-face))))
+
+(ert-deftest terraform-mode-variable-indented ()
+  "Indented assignment target gets variable face."
+  (terraform-test-with-buffer "  this_is_a_variable = \"some value\""
+    (should (eq (get-text-property 3 'face) 'font-lock-variable-name-face))))
+
+;;; Font-lock keywords
+
+(ert-deftest terraform-mode-keyword-terraform ()
+  "\"terraform\" at the start of a line gets keyword face."
+  (terraform-test-with-buffer "terraform {}"
+    (should (eq (get-text-property 1 'face) 'font-lock-builtin-face))))
+
+(ert-deftest terraform-mode-keyword-terraform-indented ()
+  "\"terraform\" with leading spaces gets keyword face."
+  (terraform-test-with-buffer "  terraform {}"
+    (should (eq (get-text-property 3 'face) 'font-lock-builtin-face))))
+
 (provide 'terraform-mode-test)
 ;;; terraform-mode-test.el ends here
