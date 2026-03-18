@@ -156,5 +156,30 @@
   (terraform-test-with-buffer "terraform {\nrequired_providers {\naws {\n}\n}\n}"
     (should (eq (get-text-property 34 'face) 'font-lock-type-face))))
 
+;;; Font-lock builtins with type
+
+(ert-deftest terraform-mode-builtin-with-type-builtin-face ()
+  "First word of a builtin-with-type block gets builtin face."
+  ;; "backend" starts at position 1
+  (terraform-test-with-buffer "backend \"s3\" {}"
+    (should (eq (get-text-property 1 'face) 'font-lock-builtin-face))))
+
+(ert-deftest terraform-mode-builtin-with-type-type-face ()
+  "Quoted type of a builtin-with-type block gets type face."
+  ;; backend (7) + space (1) = 8, so \"s3\" starts at position 9
+  (terraform-test-with-buffer "backend \"s3\" {}"
+    (should (eq (get-text-property 9 'face) 'font-lock-type-face))))
+
+(ert-deftest terraform-mode-provider-meta-builtin-face ()
+  "provider_meta builtin gets builtin face."
+  (terraform-test-with-buffer "provider_meta \"foo\" {}"
+    (should (eq (get-text-property 1 'face) 'font-lock-builtin-face))))
+
+(ert-deftest terraform-mode-provider-meta-type-face ()
+  "provider_meta quoted type gets type face."
+  ;; provider_meta (13) + space (1) = 14, so \"foo\" starts at position 15
+  (terraform-test-with-buffer "provider_meta \"foo\" {}"
+    (should (eq (get-text-property 15 'face) 'font-lock-type-face))))
+
 (provide 'terraform-mode-test)
 ;;; terraform-mode-test.el ends here

@@ -60,6 +60,13 @@
 (defconst terraform-mode--block-builtins-depth-2
   (rx line-start (zero-or-more space) (group "workspaces")))
 
+(defconst terraform-mode--block-builtins-with-type
+  (rx line-start (zero-or-more space)
+      (group (or "backend" "provider_meta"))
+      (one-or-more space)
+      (group "\"" (one-or-more (not (any "\""))) "\"")
+      (zero-or-more space) "{"))
+
 (defconst terraform-mode--provider
   (rx line-start (zero-or-more space) (group (one-or-more word)) (one-or-more space) "{"))
 
@@ -95,6 +102,9 @@
     (terraform-mode--match-depth-1-builtin 1 font-lock-builtin-face)
     (terraform-mode--match-depth-2-builtin 1 font-lock-builtin-face)
     ,terraform-mode--provider-anchor
+    (,terraform-mode--block-builtins-with-type
+     (1 font-lock-builtin-face)
+     (2 font-lock-type-face t))
     (,terraform-mode--variable 1 font-lock-variable-name-face)))
 
 ;;;###autoload
