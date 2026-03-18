@@ -51,14 +51,36 @@
     table)
   "Syntax table for `terraform-mode'.")
 
-(defconst terraform-mode--block-builtins-no-type-or-name
+(defconst terraform-mode--block-builtins-depth-0
   (rx line-start (zero-or-more space) (group "terraform")))
+
+(defconst terraform-mode--block-builtins-depth-1
+  (rx line-start (zero-or-more space) (group (or "required_providers" "cloud"))))
+
+(defconst terraform-mode--block-builtins-depth-2
+  (rx line-start (zero-or-more space) (group "workspaces")))
 
 (defconst terraform-mode--variable
   (rx line-start (zero-or-more space) (group (one-or-more word)) (zero-or-more space) "="))
 
+(defun terraform-mode--match-builtin-at-depth (regexp depth limit)
+  "Search for REGEXP up to LIMIT and match only at brace nesting DEPTH."
+  (and (re-search-forward regexp limit t)
+       (= (nth 0 (syntax-ppss (match-beginning 0))) depth)))
+
+(defun terraform-mode--match-depth-0-builtin (limit)
+  (terraform-mode--match-builtin-at-depth terraform-mode--block-builtins-depth-0 0 limit))
+
+(defun terraform-mode--match-depth-1-builtin (limit)
+  (terraform-mode--match-builtin-at-depth terraform-mode--block-builtins-depth-1 1 limit))
+
+(defun terraform-mode--match-depth-2-builtin (limit)
+  (terraform-mode--match-builtin-at-depth terraform-mode--block-builtins-depth-2 2 limit))
+
 (defconst terraform-mode--font-lock-keywords
-  `((,terraform-mode--block-builtins-no-type-or-name 1 font-lock-builtin-face)
+  `((terraform-mode--match-depth-0-builtin 1 font-lock-builtin-face)
+    (terraform-mode--match-depth-1-builtin 1 font-lock-builtin-face)
+    (terraform-mode--match-depth-2-builtin 1 font-lock-builtin-face)
     (,terraform-mode--variable 1 font-lock-variable-name-face)))
 
 ;;;###autoload

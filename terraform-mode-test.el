@@ -130,5 +130,23 @@
   (terraform-test-with-buffer "  terraform {}"
     (should (eq (get-text-property 3 'face) 'font-lock-builtin-face))))
 
+(ert-deftest terraform-mode-keyword-required-providers ()
+  "\"required_providers\" at depth 1 gets builtin face."
+  ;; terraform {\n = 12 chars, so required_providers starts at 13
+  (terraform-test-with-buffer "terraform {\nrequired_providers {}\n}"
+    (should (eq (get-text-property 13 'face) 'font-lock-builtin-face))))
+
+(ert-deftest terraform-mode-keyword-cloud ()
+  "\"cloud\" at depth 1 gets builtin face."
+  ;; terraform {\n = 12 chars, so cloud starts at 13
+  (terraform-test-with-buffer "terraform {\ncloud {}\n}"
+    (should (eq (get-text-property 13 'face) 'font-lock-builtin-face))))
+
+(ert-deftest terraform-mode-keyword-workspaces ()
+  "\"workspaces\" at depth 2 gets builtin face."
+  ;; terraform {\ncloud {\n = 20 chars, so workspaces starts at 21
+  (terraform-test-with-buffer "terraform {\ncloud {\nworkspaces {}\n}\n}"
+    (should (eq (get-text-property 21 'face) 'font-lock-builtin-face))))
+
 (provide 'terraform-mode-test)
 ;;; terraform-mode-test.el ends here
