@@ -27,6 +27,22 @@
   "Return non-nil if POS is inside a string."
   (nth 3 (syntax-ppss pos)))
 
+(defun terraform-test-face (description content checks)
+  "Assert face properties in a terraform-mode buffer with CONTENT.
+DESCRIPTION is used in failure messages.
+CHECKS is a list of alists, each with pos and face keys."
+  (with-temp-buffer
+    (terraform-mode)
+    (insert content)
+    (font-lock-ensure)
+    (dolist (check checks)
+      (let ((pos (alist-get 'pos check))
+            (expected (alist-get 'face check)))
+        (unless (eq (get-text-property pos 'face) expected)
+          (ert-fail (format "%s: expected face %S at pos %d, got %S"
+                            description expected pos
+                            (get-text-property pos 'face))))))))
+
 ;;; Mode activation
 
 (ert-deftest terraform-mode-auto-mode-tf ()
@@ -69,7 +85,6 @@
 (ert-deftest terraform-mode-block-comment-multiline ()
   "/* */ block comment spans multiple lines."
   (terraform-test-with-buffer "/*\ncomment\n*/"
-    ;; position 3 is the newline after /*, already inside the comment
     (should (terraform-test-comment-p 3))
     (should (terraform-test-comment-p 5))))
 
@@ -106,94 +121,88 @@
     (goto-char 1)
     (should (equal (char-before (scan-sexps 1 1)) ?\)))))
 
-;;; Font-lock variables
+;;; Font-lock
 
-(ert-deftest terraform-mode-variable ()
-  "Assignment target gets variable face."
-  (terraform-test-with-buffer "this_is_a_variable = \"some value\""
-    (should (eq (get-text-property 1 'face) 'font-lock-variable-name-face))))
+(ert-deftest test-terraform-mode--match-depth-0-builtin ()
+  (dolist (case '(((description . "terraform at depth 0")
+                   (content     . "terraform {}")
+                   (check       . (((pos . 1) (face . font-lock-builtin-face)))))
+                  ((description . "terraform indented at depth 0")
+                   (content     . "  terraform {}")
+                   (check       . (((pos . 3) (face . font-lock-builtin-face)))))
+                  ((description . "terraform at depth 1 gets no builtin face")
+                   (content     . "resource \"foo\" \"bar\" {\nterraform {}\n}")
+                   (check       . (((pos . 23) (face . nil)))))))
+    (terraform-test-face (alist-get 'description case)
+                         (alist-get 'content case)
+                         (alist-get 'check case))))
 
-(ert-deftest terraform-mode-variable-indented ()
-  "Indented assignment target gets variable face."
-  (terraform-test-with-buffer "  this_is_a_variable = \"some value\""
-    (should (eq (get-text-property 3 'face) 'font-lock-variable-name-face))))
+(ert-deftest test-terraform-mode--match-depth-1-builtin ()
+  (dolist (case '(((description . "required_providers at depth 1")
+                   (content     . "terraform {\nrequired_providers {}\n}")
+                   (check       . (((pos . 13) (face . font-lock-builtin-face)))))
+                  ((description . "cloud at depth 1")
+                   (content     . "terraform {\ncloud {}\n}")
+                   (check       . (((pos . 13) (face . font-lock-builtin-face)))))
+                  ((description . "required_providers at depth 0 gets no builtin face")
+                   (content     . "required_providers {}")
+                   (check       . (((pos . 1) (face . nil)))))
+                  ((description . "cloud at depth 0 gets no builtin face")
+                   (content     . "cloud {}")
+                   (check       . (((pos . 1) (face . nil)))))))
+    (terraform-test-face (alist-get 'description case)
+                         (alist-get 'content case)
+                         (alist-get 'check case))))
 
-;;; Font-lock keywords
+(ert-deftest test-terraform-mode--match-depth-2-builtin ()
+  (dolist (case '(((description . "workspaces at depth 2")
+                   (content     . "terraform {\ncloud {\nworkspaces {}\n}\n}")
+                   (check       . (((pos . 21) (face . font-lock-builtin-face)))))))
+    (terraform-test-face (alist-get 'description case)
+                         (alist-get 'content case)
+                         (alist-get 'check case))))
 
-(ert-deftest terraform-mode-keyword-terraform ()
-  "\"terraform\" at the start of a line gets keyword face."
-  (terraform-test-with-buffer "terraform {}"
-    (should (eq (get-text-property 1 'face) 'font-lock-builtin-face))))
+(ert-deftest test-terraform-mode--assignment ()
+  (dolist (case '(((description . "assignment target")
+                   (content     . "this_is_a_variable = \"some value\"")
+                   (check       . (((pos . 1) (face . font-lock-variable-name-face)))))
+                  ((description . "indented assignment target")
+                   (content     . "  this_is_a_variable = \"some value\"")
+                   (check       . (((pos . 3) (face . font-lock-variable-name-face)))))))
+    (terraform-test-face (alist-get 'description case)
+                         (alist-get 'content case)
+                         (alist-get 'check case))))
 
-(ert-deftest terraform-mode-keyword-terraform-indented ()
-  "\"terraform\" with leading spaces gets keyword face."
-  (terraform-test-with-buffer "  terraform {}"
-    (should (eq (get-text-property 3 'face) 'font-lock-builtin-face))))
+(ert-deftest test-terraform-mode--match-provider ()
+  (dolist (case '(((description . "single provider inside required_providers")
+                   (content     . "terraform {\nrequired_providers {\naws {\n}\n}\n}")
+                   (check       . (((pos . 34) (face . font-lock-type-face)))))
+                  ((description . "multiple providers inside required_providers")
+                   (content     . "terraform {\nrequired_providers {\naws {\n}\nazure {\n}\n}\n}")
+                   (check       . (((pos . 34) (face . font-lock-type-face))
+                                   ((pos . 42) (face . font-lock-type-face)))))
+                  ((description . "provider outside required_providers gets no type face")
+                   (content     . "aws {}")
+                   (check       . (((pos . 1) (face . nil)))))))
+    (terraform-test-face (alist-get 'description case)
+                         (alist-get 'content case)
+                         (alist-get 'check case))))
 
-(ert-deftest terraform-mode-keyword-required-providers ()
-  "\"required_providers\" at depth 1 gets builtin face."
-  ;; terraform {\n = 12 chars, so required_providers starts at 13
-  (terraform-test-with-buffer "terraform {\nrequired_providers {}\n}"
-    (should (eq (get-text-property 13 'face) 'font-lock-builtin-face))))
-
-(ert-deftest terraform-mode-keyword-cloud ()
-  "\"cloud\" at depth 1 gets builtin face."
-  ;; terraform {\n = 12 chars, so cloud starts at 13
-  (terraform-test-with-buffer "terraform {\ncloud {}\n}"
-    (should (eq (get-text-property 13 'face) 'font-lock-builtin-face))))
-
-(ert-deftest terraform-mode-keyword-workspaces ()
-  "\"workspaces\" at depth 2 gets builtin face."
-  ;; terraform {\ncloud {\n = 20 chars, so workspaces starts at 21
-  (terraform-test-with-buffer "terraform {\ncloud {\nworkspaces {}\n}\n}"
-    (should (eq (get-text-property 21 'face) 'font-lock-builtin-face))))
-
-;;; Font-lock types
-
-(ert-deftest terraform-mode-provider ()
-  "Provider name inside required_providers gets type face."
-  ;; terraform {\n = 12 chars, required_providers {\n = 21 chars, so aws starts at 34
-  (terraform-test-with-buffer "terraform {\nrequired_providers {\naws {\n}\n}\n}"
-    (should (eq (get-text-property 34 'face) 'font-lock-type-face))))
-
-(ert-deftest terraform-mode-provider-multiple ()
-  "All provider names inside required_providers get type face."
-  ;; terraform {\n = 12 chars, required_providers {\n = 21 chars, so aws starts at 34
-  ;; aws {\n}\n = 8 chars, so azure starts at 42
-  (terraform-test-with-buffer "terraform {\nrequired_providers {\naws {\n}\nazure {\n}\n}\n}"
-    (should (eq (get-text-property 34 'face) 'font-lock-type-face))
-    (should (eq (get-text-property 42 'face) 'font-lock-type-face))))
-
-;;; Font-lock builtins with type
-
-(ert-deftest terraform-mode-builtin-with-type-builtin-face ()
-  "First word of a builtin-with-type block gets builtin face."
-  ;; "backend" starts at position 1
-  (terraform-test-with-buffer "backend \"s3\" {}"
-    (should (eq (get-text-property 1 'face) 'font-lock-builtin-face))))
-
-(ert-deftest terraform-mode-builtin-with-type-type-face ()
-  "Quoted type of a builtin-with-type block gets type face."
-  ;; backend (7) + space (1) = 8, so \"s3\" starts at position 9
-  (terraform-test-with-buffer "backend \"s3\" {}"
-    (should (eq (get-text-property 9 'face) 'font-lock-type-face))))
-
-(ert-deftest terraform-mode-provider-meta-builtin-face ()
-  "provider_meta builtin gets builtin face."
-  (terraform-test-with-buffer "provider_meta \"foo\" {}"
-    (should (eq (get-text-property 1 'face) 'font-lock-builtin-face))))
-
-(ert-deftest terraform-mode-provider-meta-type-face ()
-  "provider_meta quoted type gets type face."
-  ;; provider_meta (13) + space (1) = 14, so \"foo\" starts at position 15
-  (terraform-test-with-buffer "provider_meta \"foo\" {}"
-    (should (eq (get-text-property 15 'face) 'font-lock-type-face))))
-
-(ert-deftest terraform-mode-builtin-with-type-in-comment ()
-  "builtin-with-type inside a block comment is not highlighted."
-  ;; /* = 3 chars, so backend starts at position 4
-  (terraform-test-with-buffer "/* backend \"s3\" {} */"
-    (should-not (eq (get-text-property 4 'face) 'font-lock-builtin-face))))
+(ert-deftest test-terraform-mode--block-builtins-with-type ()
+  (dolist (case '(((description . "backend keyword and type")
+                   (content     . "backend \"s3\" {}")
+                   (check       . (((pos . 1) (face . font-lock-builtin-face))
+                                   ((pos . 9) (face . font-lock-type-face)))))
+                  ((description . "provider_meta keyword and type")
+                   (content     . "provider_meta \"foo\" {}")
+                   (check       . (((pos . 1)  (face . font-lock-builtin-face))
+                                   ((pos . 15) (face . font-lock-type-face)))))
+                  ((description . "builtin-with-type in block comment gets comment face")
+                   (content     . "/* backend \"s3\" {} */")
+                   (check       . (((pos . 4) (face . font-lock-comment-face)))))))
+    (terraform-test-face (alist-get 'description case)
+                         (alist-get 'content case)
+                         (alist-get 'check case))))
 
 (provide 'terraform-mode-test)
 ;;; terraform-mode-test.el ends here
