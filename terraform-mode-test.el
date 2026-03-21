@@ -156,6 +156,14 @@
   (terraform-test-with-buffer "terraform {\nrequired_providers {\naws {\n}\n}\n}"
     (should (eq (get-text-property 34 'face) 'font-lock-type-face))))
 
+(ert-deftest terraform-mode-provider-multiple ()
+  "All provider names inside required_providers get type face."
+  ;; terraform {\n = 12 chars, required_providers {\n = 21 chars, so aws starts at 34
+  ;; aws {\n}\n = 8 chars, so azure starts at 42
+  (terraform-test-with-buffer "terraform {\nrequired_providers {\naws {\n}\nazure {\n}\n}\n}"
+    (should (eq (get-text-property 34 'face) 'font-lock-type-face))
+    (should (eq (get-text-property 42 'face) 'font-lock-type-face))))
+
 ;;; Font-lock builtins with type
 
 (ert-deftest terraform-mode-builtin-with-type-builtin-face ()

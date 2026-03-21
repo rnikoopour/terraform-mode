@@ -25,7 +25,7 @@
 
 ;;; Commentary:
 
-;; A major mode for editing Terraform (.tf and .tfvars) files.
+;; A major mode for editing Terraform files (.tf and .tfvars) files.
 ;; Derived from prog-mode.
 
 ;;; Code:
@@ -51,14 +51,31 @@
     table)
   "Syntax table for `terraform-mode'.")
 
+(defun terraform-mode--match-builtin-at-depth (regexp depth limit)
+  "Search for REGEXP up to LIMIT and match only at brace nesting DEPTH."
+  (and (re-search-forward regexp limit t)
+       (= (nth 0 (syntax-ppss (match-beginning 0))) depth)))
+
 (defconst terraform-mode--block-builtins-depth-0
   (rx line-start (zero-or-more space) (group "terraform")))
+
+(defun terraform-mode--match-depth-0-builtin (limit)
+  (terraform-mode--match-builtin-at-depth terraform-mode--block-builtins-depth-0 0 limit))
 
 (defconst terraform-mode--block-builtins-depth-1
   (rx line-start (zero-or-more space) (group (or "required_providers" "cloud"))))
 
+(defun terraform-mode--match-depth-1-builtin (limit)
+  (terraform-mode--match-builtin-at-depth terraform-mode--block-builtins-depth-1 1 limit))
+
 (defconst terraform-mode--block-builtins-depth-2
   (rx line-start (zero-or-more space) (group "workspaces")))
+
+(defun terraform-mode--match-depth-2-builtin (limit)
+  (terraform-mode--match-builtin-at-depth terraform-mode--block-builtins-depth-2 2 limit))
+
+(defconst terraform-mode--assignment
+  (rx line-start (zero-or-more space) (group (one-or-more word)) (zero-or-more space) "="))
 
 (defconst terraform-mode--block-builtins-with-type
   (rx line-start (zero-or-more space)
@@ -67,8 +84,11 @@
       (group (group "\"") (one-or-more (not (any "\""))) (group "\""))
       (zero-or-more space) "{"))
 
-(defun terraform-mode--syntax-propertize (start end)
-  "Mark type argument quotes in builtin-with-type blocks as punctuation.
+(defconst terraform-mode--required-providers-block
+  (rx line-start (zero-or-more space) "required_providers" (zero-or-more space) "{"))
+
+(defun terraform-mode--propertize-builtins-with-type (start end)
+  "Mark type argument quotes in builtin-with-type blocks as punctuation syntax.
 This prevents them from receiving `font-lock-string-face' during syntactic
 fontification, allowing `font-lock-type-face' to be applied without override."
   (goto-char start)
@@ -79,46 +99,54 @@ fontification, allowing `font-lock-type-face' to be applied without override."
      (4 ".")))
    start end))
 
+(defun terraform-mode--propertize-required-providers (start end)
+  "Mark contents of required_providers blocks with a text property.
+Only marks the portion of each block that overlaps with [START, END)."
+  (remove-text-properties start end '(terraform-mode-required-providers nil))
+  (save-excursion
+    (goto-char (point-min))
+    (while (re-search-forward terraform-mode--required-providers-block nil t)
+      (let ((content-start (point)))
+        (save-excursion
+          (backward-char)
+          (condition-case nil
+              (progn
+                (forward-sexp)
+                (let ((content-end (1- (point))))
+                  (when (and (> content-end content-start)
+                             (> content-end start)
+                             (< content-start end))
+                    (put-text-property
+                     (max content-start start)
+                     (min content-end end)
+                     'terraform-mode-required-providers t))))
+            (error nil)))))))
+
+(defun terraform-mode--syntax-propertize (start end)
+  "Propertize region from START to END."
+  (terraform-mode--propertize-builtins-with-type start end)
+  (terraform-mode--propertize-required-providers start end))
+
 (defconst terraform-mode--provider
   (rx line-start (zero-or-more space) (group (one-or-more word)) (one-or-more space) "{"))
 
-(defconst terraform-mode--assignment
-  (rx line-start (zero-or-more space) (group (one-or-more word)) (zero-or-more space) "="))
-
-(defun terraform-mode--match-builtin-at-depth (regexp depth limit)
-  "Search for REGEXP up to LIMIT and match only at brace nesting DEPTH."
-  (and (re-search-forward regexp limit t)
-       (= (nth 0 (syntax-ppss (match-beginning 0))) depth)))
-
-(defun terraform-mode--match-depth-0-builtin (limit)
-  (terraform-mode--match-builtin-at-depth terraform-mode--block-builtins-depth-0 0 limit))
-
-(defun terraform-mode--match-depth-1-builtin (limit)
-  (terraform-mode--match-builtin-at-depth terraform-mode--block-builtins-depth-1 1 limit))
-
-(defun terraform-mode--match-depth-2-builtin (limit)
-  (terraform-mode--match-builtin-at-depth terraform-mode--block-builtins-depth-2 2 limit))
-
-
-(defconst terraform-mode--required-providers-block
-  (rx line-start (zero-or-more space) "required_providers" (zero-or-more space) "{"))
-
-(defconst terraform-mode--provider-anchor
-  `(,terraform-mode--required-providers-block
-    (,terraform-mode--provider
-     (save-excursion (backward-char) (condition-case nil (forward-sexp) (error nil)) (point))
-     nil
-     (1 font-lock-type-face))))
+(defun terraform-mode--match-provider (limit)
+  "Match provider names inside required_providers blocks up to LIMIT."
+  (catch 'found
+    (while (re-search-forward terraform-mode--provider limit t)
+      (when (get-text-property (match-beginning 0) 'terraform-mode-required-providers)
+        (throw 'found t)))))
 
 (defconst terraform-mode--font-lock-keywords
   `((terraform-mode--match-depth-0-builtin 1 font-lock-builtin-face)
     (terraform-mode--match-depth-1-builtin 1 font-lock-builtin-face)
     (terraform-mode--match-depth-2-builtin 1 font-lock-builtin-face)
-    ,terraform-mode--provider-anchor
+    (,terraform-mode--assignment 1 font-lock-variable-name-face)
+
+    (terraform-mode--match-provider 1 font-lock-type-face)
     (,terraform-mode--block-builtins-with-type
      (1 font-lock-builtin-face)
-     (2 font-lock-type-face))
-    (,terraform-mode--assignment 1 font-lock-variable-name-face)))
+     (2 font-lock-type-face))))
 
 ;;;###autoload
 (define-derived-mode terraform-mode prog-mode "Terraform"
