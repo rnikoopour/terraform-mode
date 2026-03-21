@@ -82,7 +82,7 @@ fontification, allowing `font-lock-type-face' to be applied without override."
 (defconst terraform-mode--provider
   (rx line-start (zero-or-more space) (group (one-or-more word)) (one-or-more space) "{"))
 
-(defconst terraform-mode--variable
+(defconst terraform-mode--assignment
   (rx line-start (zero-or-more space) (group (one-or-more word)) (zero-or-more space) "="))
 
 (defun terraform-mode--match-builtin-at-depth (regexp depth limit)
@@ -118,7 +118,7 @@ fontification, allowing `font-lock-type-face' to be applied without override."
     (,terraform-mode--block-builtins-with-type
      (1 font-lock-builtin-face)
      (2 font-lock-type-face))
-    (,terraform-mode--variable 1 font-lock-variable-name-face)))
+    (,terraform-mode--assignment 1 font-lock-variable-name-face)))
 
 ;;;###autoload
 (define-derived-mode terraform-mode prog-mode "Terraform"
