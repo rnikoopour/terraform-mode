@@ -77,15 +77,13 @@
 (defconst terraform-mode--assignment
   (rx line-start (zero-or-more space) (group (one-or-more word)) (zero-or-more space) "="))
 
-(defconst terraform-mode--block-builtins-with-type
-  (rx line-start (zero-or-more space)
-      (group (or "backend" "provider_meta"))
-      (one-or-more space)
-      (group (group "\"") (one-or-more (not (any "\""))) (group "\""))
-      (zero-or-more space) "{"))
-
-(defconst terraform-mode--required-providers-block
-  (rx line-start (zero-or-more space) "required_providers" (zero-or-more space) "{"))
+(eval-and-compile
+  (defconst terraform-mode--block-builtins-with-type
+    (rx line-start (zero-or-more space)
+	(group (or "backend" "provider_meta"))
+	(one-or-more space)
+	(group (group "\"") (one-or-more (not (any "\""))) (group "\""))
+	(zero-or-more space) "{")))
 
 (defun terraform-mode--propertize-builtins-with-type (start end)
   "Mark type argument quotes in builtin-with-type blocks as punctuation syntax.
@@ -98,6 +96,9 @@ fontification, allowing `font-lock-type-face' to be applied without override."
      (3 ".")
      (4 ".")))
    start end))
+
+(defconst terraform-mode--required-providers-block
+  (rx line-start (zero-or-more space) "required_providers" (zero-or-more space) "{"))
 
 (defun terraform-mode--propertize-required-providers (start end)
   "Mark contents of required_providers blocks with a text property.
@@ -142,7 +143,6 @@ Only marks the portion of each block that overlaps with [START, END)."
     (terraform-mode--match-depth-1-builtin 1 font-lock-builtin-face)
     (terraform-mode--match-depth-2-builtin 1 font-lock-builtin-face)
     (,terraform-mode--assignment 1 font-lock-variable-name-face)
-
     (terraform-mode--match-provider 1 font-lock-type-face)
     (,terraform-mode--block-builtins-with-type
      (1 font-lock-builtin-face)
