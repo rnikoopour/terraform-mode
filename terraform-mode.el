@@ -56,6 +56,15 @@
   (and (re-search-forward regexp limit t)
        (= (nth 0 (syntax-ppss (match-beginning 0))) depth)))
 
+(defun terraform-mode--match-builtin-with-property (regexp property limit)
+  "Search for REGEXP up to LIMIT and match only where PROPERTY is set."
+  (let (found)
+    (while (and (not found)
+                (re-search-forward regexp limit t))
+      (when (get-text-property (match-beginning 0) property)
+        (setq found t)))
+    found))
+
 (defconst terraform-mode--block-builtins-depth-0
   (rx line-start (zero-or-more space) (group "terraform")))
 
@@ -66,19 +75,13 @@
   (rx line-start (zero-or-more space) (group (or "required_providers" "cloud"))))
 
 (defun terraform-mode--match-depth-1-builtin (limit)
-  (catch 'found
-    (while (re-search-forward terraform-mode--block-builtins-depth-1 limit t)
-      (when (get-text-property (match-beginning 0) 'terraform-mode-terraform-block)
-        (throw 'found t)))))
+  (terraform-mode--match-builtin-with-property terraform-mode--block-builtins-depth-1 'terraform-mode-terraform-block limit))
 
 (defconst terraform-mode--block-builtins-depth-2
   (rx line-start (zero-or-more space) (group "workspaces")))
 
 (defun terraform-mode--match-depth-2-builtin (limit)
-  (catch 'found
-    (while (re-search-forward terraform-mode--block-builtins-depth-2 limit t)
-      (when (get-text-property (match-beginning 0) 'terraform-mode-terraform-block)
-        (throw 'found t)))))
+  (terraform-mode--match-builtin-with-property terraform-mode--block-builtins-depth-2 'terraform-mode-terraform-block limit))
 
 (defconst terraform-mode--assignment
   (rx line-start (zero-or-more space) (group (one-or-more word)) (zero-or-more space) "="))
@@ -143,10 +146,7 @@ Only marks the portion of each block that overlaps with [START, END)."
 
 (defun terraform-mode--match-provider (limit)
   "Match provider names inside required_providers blocks up to LIMIT."
-  (catch 'found
-    (while (re-search-forward terraform-mode--provider limit t)
-      (when (get-text-property (match-beginning 0) 'terraform-mode-required-providers)
-        (throw 'found t)))))
+  (terraform-mode--match-builtin-with-property terraform-mode--provider 'terraform-mode-required-providers limit))
 
 (defconst terraform-mode--font-lock-keywords
   `((terraform-mode--match-depth-0-builtin 1 font-lock-builtin-face)
