@@ -7,7 +7,7 @@
 
 ;; Rewrite Author: Reza Nikoopour <rnikoopour@gmail.com>
 ;; Version: 2.0.0
-;; Package-Requires: ((emacs "26.1"))
+;; Package-Requires: ((emacs "30.1"))
 ;; Keywords: languages terraform
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -92,22 +92,36 @@
 	(group (or "backend" "provider_meta"))
 	(one-or-more space)
 	(group (group "\"") (one-or-more (not (any "\""))) (group "\""))
+	(zero-or-more space) "{"))
+
+  (defconst terraform-mode--block-builtins-with-name
+    (rx line-start (zero-or-more space)
+	(group "variable")
+	(one-or-more space)
+	(group (group "\"") (one-or-more (not (any "\""))) (group "\""))
 	(zero-or-more space) "{")))
 
 (defun terraform-mode--propertize-builtins-with-type (start end)
-  "Mark type argument quotes in builtin-with-type blocks as punctuation syntax.
-This prevents them from receiving `font-lock-string-face' during syntactic
-fontification, allowing `font-lock-type-face' to be applied without override."
+  "Mark quoted label quotes in builtin-with-type and builtin-with-name blocks
+as punctuation syntax, preventing `font-lock-string-face' from being applied."
   (goto-char start)
   (funcall
    (syntax-propertize-rules
     (terraform-mode--block-builtins-with-type
+     (3 ".")
+     (4 "."))
+    (terraform-mode--block-builtins-with-name
      (3 ".")
      (4 ".")))
    start end))
 
 (defconst terraform-mode--terraform-block
   (rx line-start (zero-or-more space) "terraform" (zero-or-more space) "{"))
+
+(defconst terraform-mode--variable-block
+  (rx line-start (zero-or-more space) "variable" (one-or-more space)
+      "\"" (one-or-more (not (any "\""))) "\""
+      (zero-or-more space) "{"))
 
 (defconst terraform-mode--required-providers-block
   (rx line-start (zero-or-more space) "required_providers" (zero-or-more space) "{"))
@@ -121,24 +135,27 @@ Only marks the portion of each block that overlaps with [START, END)."
     (while (re-search-forward regexp nil t)
       (let ((content-start (point)))
         (save-excursion
-          (backward-char)
-          (condition-case nil
-              (progn
-                (forward-sexp)
-                (let ((content-end (1- (point))))
-                  (when (and (> content-end content-start)
-                             (> content-end start)
-                             (< content-start end))
-                    (put-text-property
-                     (max content-start start)
-                     (min content-end end)
-                     property t))))
-            (error nil)))))))
+          (let ((depth 1))
+            (while (and (> depth 0)
+                        (re-search-forward "[{}]" nil t))
+              (pcase (char-before)
+                (?{ (setq depth (1+ depth)))
+                (?} (setq depth (1- depth)))))
+            (when (= depth 0)
+              (let ((content-end (1- (point))))
+                (when (and (> content-end content-start)
+                           (> content-end start)
+                           (< content-start end))
+                  (put-text-property
+                   (max content-start start)
+                   (min content-end end)
+                   property t))))))))))
 
 (defun terraform-mode--syntax-propertize (start end)
   "Propertize region from START to END."
   (terraform-mode--propertize-builtins-with-type start end)
   (terraform-mode--propertize-block terraform-mode--terraform-block 'terraform-mode-terraform-block start end)
+  (terraform-mode--propertize-block terraform-mode--variable-block 'terraform-mode-variable-block start end)
   (terraform-mode--propertize-block terraform-mode--required-providers-block 'terraform-mode-required-providers start end))
 
 (defconst terraform-mode--provider
@@ -148,15 +165,28 @@ Only marks the portion of each block that overlaps with [START, END)."
   "Match provider names inside required_providers blocks up to LIMIT."
   (terraform-mode--match-builtin-with-property terraform-mode--provider 'terraform-mode-required-providers limit))
 
+(defconst terraform-mode--variable-types
+  (rx word-start
+      (group (or "string" "number" "bool" "list" "set" "map" "object"))
+      word-end))
+
+(defun terraform-mode--match-variable-type (limit)
+  "Match type keywords inside variable blocks up to LIMIT."
+  (terraform-mode--match-builtin-with-property terraform-mode--variable-types 'terraform-mode-variable-block limit))
+
 (defconst terraform-mode--font-lock-keywords
   `((terraform-mode--match-depth-0-builtin 1 font-lock-builtin-face)
     (terraform-mode--match-depth-1-builtin 1 font-lock-builtin-face)
     (terraform-mode--match-depth-2-builtin 1 font-lock-builtin-face)
     (,terraform-mode--assignment 1 font-lock-variable-name-face)
     (terraform-mode--match-provider 1 font-lock-type-face)
+    (terraform-mode--match-variable-type 1 font-lock-type-face)
     (,terraform-mode--block-builtins-with-type
      (1 font-lock-builtin-face)
-     (2 font-lock-type-face))))
+     (2 font-lock-type-face))
+    (,terraform-mode--block-builtins-with-name
+     (1 font-lock-builtin-face)
+     (2 font-lock-variable-name-face))))
 
 ;;;###autoload
 (define-derived-mode terraform-mode prog-mode "Terraform"
