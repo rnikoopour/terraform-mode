@@ -66,13 +66,19 @@
   (rx line-start (zero-or-more space) (group (or "required_providers" "cloud"))))
 
 (defun terraform-mode--match-depth-1-builtin (limit)
-  (terraform-mode--match-builtin-at-depth terraform-mode--block-builtins-depth-1 1 limit))
+  (catch 'found
+    (while (re-search-forward terraform-mode--block-builtins-depth-1 limit t)
+      (when (get-text-property (match-beginning 0) 'terraform-mode-terraform-block)
+        (throw 'found t)))))
 
 (defconst terraform-mode--block-builtins-depth-2
   (rx line-start (zero-or-more space) (group "workspaces")))
 
 (defun terraform-mode--match-depth-2-builtin (limit)
-  (terraform-mode--match-builtin-at-depth terraform-mode--block-builtins-depth-2 2 limit))
+  (catch 'found
+    (while (re-search-forward terraform-mode--block-builtins-depth-2 limit t)
+      (when (get-text-property (match-beginning 0) 'terraform-mode-terraform-block)
+        (throw 'found t)))))
 
 (defconst terraform-mode--assignment
   (rx line-start (zero-or-more space) (group (one-or-more word)) (zero-or-more space) "="))
@@ -97,16 +103,19 @@ fontification, allowing `font-lock-type-face' to be applied without override."
      (4 ".")))
    start end))
 
+(defconst terraform-mode--terraform-block
+  (rx line-start (zero-or-more space) "terraform" (zero-or-more space) "{"))
+
 (defconst terraform-mode--required-providers-block
   (rx line-start (zero-or-more space) "required_providers" (zero-or-more space) "{"))
 
-(defun terraform-mode--propertize-required-providers (start end)
-  "Mark contents of required_providers blocks with a text property.
+(defun terraform-mode--propertize-block (regexp property start end)
+  "Mark contents of blocks matched by REGEXP with PROPERTY as a text property.
 Only marks the portion of each block that overlaps with [START, END)."
-  (remove-text-properties start end '(terraform-mode-required-providers nil))
+  (remove-text-properties start end (list property nil))
   (save-excursion
     (goto-char (point-min))
-    (while (re-search-forward terraform-mode--required-providers-block nil t)
+    (while (re-search-forward regexp nil t)
       (let ((content-start (point)))
         (save-excursion
           (backward-char)
@@ -120,13 +129,14 @@ Only marks the portion of each block that overlaps with [START, END)."
                     (put-text-property
                      (max content-start start)
                      (min content-end end)
-                     'terraform-mode-required-providers t))))
+                     property t))))
             (error nil)))))))
 
 (defun terraform-mode--syntax-propertize (start end)
   "Propertize region from START to END."
   (terraform-mode--propertize-builtins-with-type start end)
-  (terraform-mode--propertize-required-providers start end))
+  (terraform-mode--propertize-block terraform-mode--terraform-block 'terraform-mode-terraform-block start end)
+  (terraform-mode--propertize-block terraform-mode--required-providers-block 'terraform-mode-required-providers start end))
 
 (defconst terraform-mode--provider
   (rx line-start (zero-or-more space) (group (one-or-more word)) (one-or-more space) "{"))
