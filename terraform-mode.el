@@ -53,30 +53,35 @@
   "Syntax table for `terraform-mode'.")
 
 ;; Text Propertizing
-(defun terraform-mode--text-propertize-block (regexp property start end)
+(defun terraform-mode--text-propertize-block (regexp property start end depth &optional required-property)
   "Mark contents of blocks matched by REGEXP with PROPERTY as a text property.
-Only marks the portion of each block that overlaps with [START, END)."
+Only marks the portion of each block that overlaps with [START, END).
+Only marks blocks at brace nesting DEPTH.
+When REQUIRED-PROPERTY is non-nil, only mark blocks where that property is set at the match."
   (remove-text-properties start end (list property nil))
   (save-excursion
     (goto-char (point-min))
     (while (re-search-forward regexp nil t)
-      (let ((content-start (point)))
-        (save-excursion
-          (let ((depth 1))
-            (while (and (> depth 0)
-                        (re-search-forward "[{}]" nil t))
-              (pcase (char-before)
-                (?{ (setq depth (1+ depth)))
-                (?} (setq depth (1- depth)))))
-            (when (= depth 0)
-              (let ((content-end (1- (point))))
-                (when (and (> content-end content-start)
-                           (> content-end start)
-                           (< content-start end))
-                  (put-text-property
-                   (max content-start start)
-                   (min content-end end)
-                   property t))))))))))
+      (when (and (= (nth 0 (save-excursion (parse-partial-sexp (point-min) (match-beginning 0)))) depth)
+                 (or (null required-property)
+                     (get-text-property (match-beginning 0) required-property)))
+        (let ((content-start (point)))
+          (save-excursion
+            (let ((relative-depth 1))
+              (while (and (> relative-depth 0)
+                          (re-search-forward "[{}]" nil t))
+                (pcase (char-before)
+                  (?{ (setq relative-depth (1+ relative-depth)))
+                  (?} (setq relative-depth (1- relative-depth)))))
+              (when (= relative-depth 0)
+                (let ((content-end (1- (point))))
+                  (when (and (> content-end content-start)
+                             (> content-end start)
+                             (< content-start end))
+                    (put-text-property
+                     (max content-start start)
+                     (min content-end end)
+                     property t)))))))))))
 
 (defconst terraform-mode--terraform-block-propertize
   (rx line-start (zero-or-more space) "terraform" (zero-or-more space) "{"))
@@ -104,9 +109,10 @@ Only marks the portion of each block that overlaps with [START, END)."
 	(group (group "\"") (one-or-more (not (any "\""))) (group "\""))
 	(zero-or-more space) "{")))
 
-(defun terraform-mode--propertize-builtins-with-type (start end)
-  "Mark quoted label quotes in builtin-with-type and builtin-with-name blocks
-as punctuation syntax, preventing `font-lock-string-face' from being applied."
+(defun terraform-mode--builtins-with-type-propertize-match (start end)
+  "Add text property to Terraform blocks with type.
+This prevents `font-lock-string-face' from being applied.
+Applies to region [START, END]."
   (goto-char start)
   (funcall
    (syntax-propertize-rules
@@ -120,10 +126,10 @@ as punctuation syntax, preventing `font-lock-string-face' from being applied."
 
 (defun terraform-mode--syntax-propertize (start end)
   "Propertize region from START to END."
-  (terraform-mode--propertize-builtins-with-type start end)
-  (terraform-mode--text-propertize-block terraform-mode--terraform-block-propertize 'terraform-mode-terraform-block start end)
-  (terraform-mode--text-propertize-block terraform-mode--variable-block-propertize 'terraform-mode-variable-block start end)
-  (terraform-mode--text-propertize-block terraform-mode--required-providers-block-propertize 'terraform-mode-required-providers start end))
+  (terraform-mode--builtins-with-type-propertize-match start end)
+  (terraform-mode--text-propertize-block terraform-mode--terraform-block-propertize 'terraform-mode-terraform-block start end 0)
+  (terraform-mode--text-propertize-block terraform-mode--variable-block-propertize 'terraform-mode-variable-block start end 0)
+  (terraform-mode--text-propertize-block terraform-mode--required-providers-block-propertize 'terraform-mode-required-providers start end 1 'terraform-mode-terraform-block))
 
 ;; Syntax highlighting
 (defun terraform-mode--builtin-at-depth-highlight-match (regexp depth limit)
