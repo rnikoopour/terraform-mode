@@ -112,7 +112,6 @@ at the match."
       "\"" (one-or-more (not (any "\""))) "\""
       (zero-or-more space) "{"))
 
-
 (defconst terraform-mode--label-bearing-keywords-propertize
   (rx line-start (zero-or-more space)
       (group (or terraform-mode--block-with-type-only terraform-mode--block-with-name-only))
@@ -215,6 +214,17 @@ Order of functions is important."
 (defconst terraform-mode--assignment-highlight
   (rx line-start (zero-or-more space) (group (one-or-more word)) (zero-or-more space) "="))
 
+(defconst terraform-mode--module-builtins-highlight
+  (rx line-start
+      (zero-or-more space)
+      (group (or "source" "providers"))
+      (zero-or-more space)
+      "="))
+
+(defun terraform-mode--module-builtin-highlight-match (limit)
+  "Match type keywords inside module blocks up to LIMIT."
+  (terraform-mode--builtin-with-property-highlight-match terraform-mode--module-builtins-highlight 'terraform-mode-module-block limit))
+
 (defconst terraform-mode--variable-types-highlight
   (rx word-start
       (group (or "string" "number" "bool" "list" "set" "map" "object" "any"))
@@ -259,6 +269,7 @@ Order of functions is important."
 (defconst terraform-mode--font-lock-keywords
   `((terraform-mode--block-keywords-highlight-match 1 font-lock-builtin-face)
     (terraform-mode--inside-terraform-block-highlight-match 1 font-lock-builtin-face)
+    (terraform-mode--module-builtin-highlight-match 1 font-lock-builtin-face)
     (,terraform-mode--assignment-highlight 1 font-lock-variable-name-face)
     (,terraform-mode--reference-keywords-highlight 1 font-lock-builtin-face)
     (terraform-mode--lifecycle-highlight-match 1 font-lock-builtin-face)

@@ -425,6 +425,17 @@ CHECKS is a list of alists, each with pos and face keys."
                                   (alist-get 'content case)
                                   (alist-get 'check case))))
 
+(ert-deftest test-terraform-mode--module-builtins ()
+  (dolist (case '(((description . "source inside module block gets builtin face")
+                   (content     . "module \"vpc\" {\nsource = \"terraform-aws-vpc\"\n}")
+                   (check       . (((pos . 16) (face . font-lock-builtin-face)))))
+                  ((description . "providers inside module block gets builtin face")
+                   (content     . "module \"vpc\" {\nproviders = {}\n}")
+                   (check       . (((pos . 16) (face . font-lock-builtin-face)))))))
+    (terraform-test-face (alist-get 'description case)
+                         (alist-get 'content case)
+                         (alist-get 'check case))))
+
 (ert-deftest test-terraform-mode--reference-keywords ()
   (dolist (case '(((description . "var gets builtin face")
                    (content     . "var.instance_type")
