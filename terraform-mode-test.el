@@ -118,6 +118,27 @@ CHECKS is a list of alists, each with pos and face keys."
     (should (terraform-test-string-p 2))
     (should-not (terraform-test-string-p 9))))
 
+;;; String interpolation syntax
+
+(ert-deftest terraform-mode-string-interpolation ()
+  "Content inside ${...} is not parsed as a string."
+  ;; "${var.foo}" - positions: "(1)$(2){(3)v(4)a(5)r(6).(7)f(8)o(9)o(10)}(11)"(12)
+  (terraform-test-with-buffer "\"${var.foo}\""
+    (should-not (terraform-test-string-p 4))))
+
+(ert-deftest terraform-mode-string-interpolation-literal-part ()
+  "Content outside ${...} in a string is still parsed as a string."
+  ;; "prefix-${var.foo}" - 'p' at pos 2 is in the literal part
+  (terraform-test-with-buffer "\"prefix-${var.foo}\""
+    (should (terraform-test-string-p 2))
+    (should-not (terraform-test-string-p 11))))
+
+(ert-deftest terraform-mode-string-interpolation-escaped ()
+  "$\\${ is not treated as an interpolation."
+  ;; "$${literal}" - the $$ escapes the interpolation
+  (terraform-test-with-buffer "\"$${literal}\""
+    (should (terraform-test-string-p 5))))
+
 ;;; Bracket syntax
 
 (ert-deftest terraform-mode-curly-brackets ()

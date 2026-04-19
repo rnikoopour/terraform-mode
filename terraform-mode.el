@@ -152,9 +152,71 @@ suppress `font-lock-string-face' on their contents."
             (goto-char (match-end 0))
             (terraform-mode--propertize-next-label)))))))
 
+(defun terraform-mode--string-interpolation-propertize ()
+  "Mark ${...} in strings so interpolation content is parsed as code.
+Marks the enclosing quotes and the interpolation braces with generic-string
+delimiter syntax, splitting the string at each ${...} boundary."
+  (save-excursion
+    (goto-char (point-min))
+    (while (< (point) (point-max))
+      (cond
+       ((or (eq (char-after) ?#)
+            (and (eq (char-after) ?/)
+                 (eq (char-after (1+ (point))) ?/)))
+        (end-of-line)
+        (when (< (point) (point-max)) (forward-char 1)))
+       ((and (eq (char-after) ?/)
+             (eq (char-after (1+ (point))) ?*))
+        (or (search-forward "*/" nil t) (goto-char (point-max))))
+       ((eq (char-after) ?\")
+        (let ((open-pos (point))
+              (brace-pairs nil)
+              (close-pos nil))
+          (forward-char 1)
+          (catch 'done
+            (while (< (point) (point-max))
+              (cond
+               ((eq (char-after) ?\\)
+                (forward-char 2))
+               ((eq (char-after) ?\")
+                (setq close-pos (point))
+                (forward-char 1)
+                (throw 'done nil))
+               ((and (eq (char-after) ?$)
+                     (eq (char-after (1+ (point))) ?{)
+                     (not (eq (char-before) ?$)))
+                (let ((brace-open (1+ (point))))
+                  (forward-char 2)
+                  (let ((depth 1))
+                    (while (and (> depth 0) (< (point) (point-max)))
+                      (cond
+                       ((eq (char-after) ?{)
+                        (setq depth (1+ depth))
+                        (forward-char 1))
+                       ((eq (char-after) ?})
+                        (setq depth (1- depth))
+                        (when (= depth 0)
+                          (push (cons brace-open (point)) brace-pairs))
+                        (forward-char 1))
+                       (t (forward-char 1)))))))
+               (t (forward-char 1)))))
+          (when brace-pairs
+            (put-text-property open-pos (1+ open-pos)
+                               'syntax-table (string-to-syntax "|"))
+            (when close-pos
+              (put-text-property close-pos (1+ close-pos)
+                                 'syntax-table (string-to-syntax "|")))
+            (dolist (pair brace-pairs)
+              (put-text-property (car pair) (1+ (car pair))
+                                 'syntax-table (string-to-syntax "|"))
+              (put-text-property (cdr pair) (1+ (cdr pair))
+                                 'syntax-table (string-to-syntax "|"))))))
+       (t (forward-char 1))))))
+
 (defun terraform-mode--syntax-propertize (start end)
   "Propertize region from START to END.
 Order of functions is important."
+  (terraform-mode--string-interpolation-propertize)
   (terraform-mode--builtins-with-type-propertize-match start end)
   (terraform-mode--text-propertize-block terraform-mode--terraform-block-propertize 'terraform-mode-terraform-block start end 0)
   (terraform-mode--text-propertize-block terraform-mode--locals-block-propertize 'terraform-mode-locals-block start end 0)
