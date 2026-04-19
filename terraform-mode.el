@@ -79,15 +79,22 @@ at the match."
                 (pcase (char-before)
                   (?{ (setq relative-depth (1+ relative-depth)))
                   (?} (setq relative-depth (1- relative-depth)))))
-              (when (= relative-depth 0)
-                (let ((content-end (1- (point))))
-                  (when (and (> content-end content-start)
-                             (> content-end start)
-                             (< content-start end))
-                    (put-text-property
-                     (max content-start start)
-                     (min content-end end)
-                     property t)))))))))))
+              (if (= relative-depth 0)
+                  (let ((content-end (1- (point))))
+                    (when (and (> content-end content-start)
+                               (> content-end start)
+                               (< content-start end))
+                      (put-text-property
+                       (max content-start start)
+                       (min content-end end)
+                       property t)))
+                ;; Block is incomplete (unbalanced braces during typing).
+                ;; Mark what we can so the edited line keeps its property.
+                (when (and (< content-start end) (> end start))
+                  (put-text-property
+                   (max content-start start)
+                   end
+                   property t))))))))))
 
 (defconst terraform-mode--terraform-block-propertize
   (rx line-start (zero-or-more space) "terraform" (zero-or-more space) "{"))
@@ -218,6 +225,25 @@ delimiter syntax, splitting the string at each ${...} boundary."
                                  'syntax-table (string-to-syntax "|"))))))
        (t (forward-char 1))))))
 
+(defun terraform-mode--syntax-propertize-extend-region (start end)
+  "Extend [START, END) to cover the enclosing top-level block.
+Ensures syntax-propertize and font-lock both run on the full block
+when any part of it changes."
+  (let ((new-start start)
+        (new-end end))
+    (save-excursion
+      (goto-char start)
+      (when (re-search-backward
+             (rx line-start (or "resource" "data" "module" "variable" "output"
+                                "terraform" "provider" "locals")
+             word-end) nil t)
+        (setq new-start (min new-start (line-beginning-position))))
+      (goto-char end)
+      (when (re-search-forward (rx line-start "}") nil t)
+        (setq new-end (max new-end (point)))))
+    (unless (and (= new-start start) (= new-end end))
+      (cons new-start new-end))))
+
 (defun terraform-mode--syntax-propertize (start end)
   "Propertize region from START to END.
 Order of functions is important."
@@ -314,8 +340,8 @@ Order of functions is important."
   "Match type keywords inside variable blocks up to LIMIT."
   (terraform-mode--builtin-with-property-highlight-match terraform-mode--variable-types-highlight 'terraform-mode-variable-block limit))
 
-(defconst terraform-mode--boolean-highlight
-  (rx word-start (group (or "true" "false")) word-end))
+(defconst terraform-mode--literal-keywords-highlight
+  (rx word-start (group (or "true" "false" "null")) word-end))
 
 (defconst terraform-mode--variable-type-builtins-highlight
   (rx word-start (group "optional") word-end))
@@ -326,6 +352,9 @@ Order of functions is important."
 
 (defconst terraform-mode--reference-keywords-highlight
   (rx word-start (group (or "var" "local" "module" "data")) word-end))
+
+(defconst terraform-mode--ternary-highlight
+  (rx (group (or "?" ":"))))
 
 (defconst terraform-mode--builtin-functions-highlight
   (rx word-start
@@ -378,8 +407,9 @@ Order of functions is important."
     (terraform-mode--inside-terraform-block-highlight-match 1 font-lock-builtin-face)
     (terraform-mode--module-builtin-highlight-match 1 font-lock-builtin-face)
     (,terraform-mode--assignment-highlight 1 font-lock-variable-name-face)
-    (,terraform-mode--boolean-highlight 1 font-lock-builtin-face)
+    (,terraform-mode--literal-keywords-highlight 1 font-lock-builtin-face)
     (,terraform-mode--builtin-functions-highlight 1 font-lock-builtin-face)
+    (,terraform-mode--ternary-highlight 1 font-lock-builtin-face)
     (,terraform-mode--reference-keywords-highlight 1 font-lock-builtin-face)
     (terraform-mode--lifecycle-highlight-match 1 font-lock-builtin-face)
     (terraform-mode--resource-sub-block-highlight-match 1 font-lock-variable-name-face)
@@ -418,7 +448,9 @@ Order of functions is important."
   (setq-local comment-start "#")
   (setq-local comment-end "")
   (setq-local font-lock-defaults '(terraform-mode--font-lock-keywords nil nil))
-  (setq-local syntax-propertize-function #'terraform-mode--syntax-propertize))
+  (setq-local syntax-propertize-function #'terraform-mode--syntax-propertize)
+  (add-hook 'syntax-propertize-extend-region-functions
+            #'terraform-mode--syntax-propertize-extend-region nil t))
 
 ;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.tf\\'" . terraform-mode))
