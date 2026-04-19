@@ -62,7 +62,8 @@
   "Mark contents of blocks matched by REGEXP with PROPERTY as a text property.
 Only marks the portion of each block that overlaps with [START, END).
 Only marks blocks at brace nesting DEPTH.
-When REQUIRED-PROPERTY is non-nil, only mark blocks where that property is set at the match."
+When REQUIRED-PROPERTY is non-nil, only mark blocks where that property is set
+at the match."
   (remove-text-properties start end (list property nil))
   (save-excursion
     (goto-char (point-min))
@@ -95,12 +96,12 @@ When REQUIRED-PROPERTY is non-nil, only mark blocks where that property is set a
   (rx line-start (zero-or-more space) "required_providers" (zero-or-more space) "{"))
 
 (defconst terraform-mode--variable-block-propertize
-  (rx line-start (zero-or-more space) "variable" (one-or-more space)
+  (rx line-start (zero-or-more space) terraform-mode--block-with-name-only (one-or-more space)
       "\"" (one-or-more (not (any "\""))) "\""
       (zero-or-more space) "{"))
 
 (defconst terraform-mode--resource-block-propertize
-  (rx line-start (zero-or-more space) (or "resource" "data") (one-or-more space)
+  (rx line-start (zero-or-more space) terraform-mode--block-with-type-and-name (one-or-more space)
       "\"" (one-or-more (not (any "\""))) "\""
       (one-or-more space)
       "\"" (one-or-more (not (any "\""))) "\""
