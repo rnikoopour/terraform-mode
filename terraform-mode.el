@@ -438,8 +438,6 @@ Order of functions is important."
 (defconst terraform-mode--reference-keywords-highlight
   (rx word-start (group (or "var" "local" "module" "data")) word-end))
 
-(defconst terraform-mode--ternary-highlight
-  (rx (group (or "?" ":"))))
 
 (defconst terraform-mode--builtin-functions-highlight
   (rx word-start
@@ -521,8 +519,7 @@ Order of functions is important."
     (,terraform-mode--assignment-highlight 1 font-lock-variable-name-face)
     (,terraform-mode--literal-keywords-highlight 1 font-lock-builtin-face)
     (,terraform-mode--builtin-functions-highlight 1 font-lock-builtin-face)
-    (,terraform-mode--ternary-highlight 1 font-lock-builtin-face)
-    (,terraform-mode--reference-keywords-highlight 1 font-lock-builtin-face)
+(,terraform-mode--reference-keywords-highlight 1 font-lock-builtin-face)
     (terraform-mode--lifecycle-highlight-match 1 font-lock-builtin-face)
     (terraform-mode--resource-sub-block-highlight-match 1 font-lock-variable-name-face)
     (terraform-mode--each-highlight-match
