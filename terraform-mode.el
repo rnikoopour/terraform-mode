@@ -192,6 +192,13 @@ Order of functions is important."
   "Match lifecycle keyword inside resource blocks up to LIMIT."
   (terraform-mode--builtin-with-property-highlight-match terraform-mode--lifecycle-highlight 'terraform-mode-resource-block limit))
 
+(defconst terraform-mode--each-highlight
+  (rx word-start (group "each") (optional "." (group (or "key" "value"))) word-end))
+
+(defun terraform-mode--each-highlight-match (limit)
+  "Match each and each.key/each.value inside resource blocks up to LIMIT."
+  (terraform-mode--builtin-with-property-highlight-match terraform-mode--each-highlight 'terraform-mode-resource-block limit))
+
 (defconst terraform-mode--provider-highlight
   (rx line-start (zero-or-more space) (group (one-or-more word)) (one-or-more space) "{"))
 
@@ -245,6 +252,9 @@ Order of functions is important."
     (terraform-mode--inside-terraform-block-highlight-match 1 font-lock-builtin-face)
     (,terraform-mode--assignment-highlight 1 font-lock-variable-name-face)
     (terraform-mode--lifecycle-highlight-match 1 font-lock-builtin-face)
+    (terraform-mode--each-highlight-match
+     (1 font-lock-builtin-face)
+     (2 font-lock-builtin-face nil t))
     (terraform-mode--provider-highlight-match 1 font-lock-type-face)
     (terraform-mode--variable-type-highlight-match 1 font-lock-type-face)
     (terraform-mode--variable-type-builtins-highlight-match 1 font-lock-builtin-face)
