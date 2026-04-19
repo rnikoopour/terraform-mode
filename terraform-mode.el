@@ -307,10 +307,11 @@ Order of functions is important."
   "Match type keywords inside variable blocks up to LIMIT."
   (terraform-mode--builtin-with-property-highlight-match terraform-mode--variable-types-highlight 'terraform-mode-variable-block limit))
 
+(defconst terraform-mode--boolean-highlight
+  (rx word-start (group (or "true" "false")) word-end))
+
 (defconst terraform-mode--variable-type-builtins-highlight
-  (rx word-start
-      (group (or "true" "false" "optional"))
-      word-end))
+  (rx word-start (group "optional") word-end))
 
 (defun terraform-mode--variable-type-builtins-highlight-match (limit)
   "Match builtin values inside variable blocks up to LIMIT."
@@ -344,6 +345,7 @@ Order of functions is important."
     (terraform-mode--inside-terraform-block-highlight-match 1 font-lock-builtin-face)
     (terraform-mode--module-builtin-highlight-match 1 font-lock-builtin-face)
     (,terraform-mode--assignment-highlight 1 font-lock-variable-name-face)
+    (,terraform-mode--boolean-highlight 1 font-lock-builtin-face)
     (,terraform-mode--reference-keywords-highlight 1 font-lock-builtin-face)
     (terraform-mode--lifecycle-highlight-match 1 font-lock-builtin-face)
     (terraform-mode--each-highlight-match
