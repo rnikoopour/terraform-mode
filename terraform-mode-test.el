@@ -411,5 +411,16 @@ CHECKS is a list of alists, each with pos and face keys."
                          (alist-get 'content case)
                          (alist-get 'check case))))
 
+(ert-deftest test-terraform-mode--reference-keywords ()
+  (dolist (case '(((description . "var gets builtin face")
+                   (content     . "var.instance_type")
+                   (check       . (((pos . 1) (face . font-lock-builtin-face)))))
+                  ((description . "local gets builtin face")
+                   (content     . "local.common_tags")
+                   (check       . (((pos . 1) (face . font-lock-builtin-face)))))))
+    (terraform-test-face (alist-get 'description case)
+                         (alist-get 'content case)
+                         (alist-get 'check case))))
+
 (provide 'terraform-mode-test)
 ;;; terraform-mode-test.el ends here

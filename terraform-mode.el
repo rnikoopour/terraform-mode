@@ -227,6 +227,9 @@ Order of functions is important."
   "Match builtin values inside variable blocks up to LIMIT."
   (terraform-mode--builtin-with-property-highlight-match terraform-mode--variable-type-builtins-highlight 'terraform-mode-variable-block limit))
 
+(defconst terraform-mode--reference-keywords-highlight
+  (rx word-start (group (or "var" "local")) word-end))
+
 (defconst terraform-mode--block-builtins-with-type-highlight
   (rx line-start (zero-or-more space)
       (group terraform-mode--block-with-type-only)
@@ -251,6 +254,7 @@ Order of functions is important."
   `((terraform-mode--block-keywords-highlight-match 1 font-lock-builtin-face)
     (terraform-mode--inside-terraform-block-highlight-match 1 font-lock-builtin-face)
     (,terraform-mode--assignment-highlight 1 font-lock-variable-name-face)
+    (,terraform-mode--reference-keywords-highlight 1 font-lock-builtin-face)
     (terraform-mode--lifecycle-highlight-match 1 font-lock-builtin-face)
     (terraform-mode--each-highlight-match
      (1 font-lock-builtin-face)
