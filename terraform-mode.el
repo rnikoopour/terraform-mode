@@ -125,11 +125,12 @@ Applies to region [START, END]."
    start end))
 
 (defun terraform-mode--syntax-propertize (start end)
-  "Propertize region from START to END."
+  "Propertize region from START to END.
+Order of functions is important."
   (terraform-mode--builtins-with-type-propertize-match start end)
   (terraform-mode--text-propertize-block terraform-mode--terraform-block-propertize 'terraform-mode-terraform-block start end 0)
-  (terraform-mode--text-propertize-block terraform-mode--variable-block-propertize 'terraform-mode-variable-block start end 0)
-  (terraform-mode--text-propertize-block terraform-mode--required-providers-block-propertize 'terraform-mode-required-providers start end 1 'terraform-mode-terraform-block))
+  (terraform-mode--text-propertize-block terraform-mode--required-providers-block-propertize 'terraform-mode-required-providers start end 1 'terraform-mode-terraform-block)
+  (terraform-mode--text-propertize-block terraform-mode--variable-block-propertize 'terraform-mode-variable-block start end 0))
 
 ;; Syntax highlighting
 (defun terraform-mode--builtin-at-depth-highlight-match (regexp depth limit)
