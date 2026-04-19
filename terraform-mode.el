@@ -92,6 +92,9 @@ at the match."
 (defconst terraform-mode--terraform-block-propertize
   (rx line-start (zero-or-more space) "terraform" (zero-or-more space) "{"))
 
+(defconst terraform-mode--locals-block-propertize
+  (rx line-start (zero-or-more space) "locals" (zero-or-more space) "{"))
+
 (defconst terraform-mode--required-providers-block-propertize
   (rx line-start (zero-or-more space) "required_providers" (zero-or-more space) "{"))
 
@@ -154,6 +157,7 @@ suppress `font-lock-string-face' on their contents."
 Order of functions is important."
   (terraform-mode--builtins-with-type-propertize-match start end)
   (terraform-mode--text-propertize-block terraform-mode--terraform-block-propertize 'terraform-mode-terraform-block start end 0)
+  (terraform-mode--text-propertize-block terraform-mode--locals-block-propertize 'terraform-mode-locals-block start end 0)
   (terraform-mode--text-propertize-block terraform-mode--required-providers-block-propertize 'terraform-mode-required-providers start end 1 'terraform-mode-terraform-block)
   (terraform-mode--text-propertize-block terraform-mode--variable-block-propertize 'terraform-mode-variable-block start end 0)
   (terraform-mode--text-propertize-block terraform-mode--resource-block-propertize 'terraform-mode-resource-block start end 0)
@@ -177,6 +181,7 @@ Order of functions is important."
 (defconst terraform-mode--block-keywords-highlight
   (rx line-start (zero-or-more space)
       (group (or "terraform"
+                 "locals"
                  terraform-mode--block-with-type-only
                  terraform-mode--block-with-name-only))))
 
