@@ -263,6 +263,13 @@ Order of functions is important."
 (defun terraform-mode--inside-terraform-block-highlight-match (limit)
   (terraform-mode--builtin-with-property-highlight-match terraform-mode--block-builtins-inside-terraform-highlight 'terraform-mode-terraform-block limit))
 
+(defconst terraform-mode--resource-sub-block-highlight
+  (rx line-start (zero-or-more space) (group (one-or-more word)) (zero-or-more space) "{"))
+
+(defun terraform-mode--resource-sub-block-highlight-match (limit)
+  "Match sub-block labels inside resource blocks up to LIMIT."
+  (terraform-mode--builtin-with-property-highlight-match terraform-mode--resource-sub-block-highlight 'terraform-mode-resource-block limit))
+
 (defconst terraform-mode--lifecycle-highlight
   (rx line-start (zero-or-more space) (group "lifecycle")))
 
@@ -375,6 +382,7 @@ Order of functions is important."
     (,terraform-mode--builtin-functions-highlight 1 font-lock-builtin-face)
     (,terraform-mode--reference-keywords-highlight 1 font-lock-builtin-face)
     (terraform-mode--lifecycle-highlight-match 1 font-lock-builtin-face)
+    (terraform-mode--resource-sub-block-highlight-match 1 font-lock-variable-name-face)
     (terraform-mode--each-highlight-match
      (1 font-lock-builtin-face)
      (2 font-lock-builtin-face nil t))
