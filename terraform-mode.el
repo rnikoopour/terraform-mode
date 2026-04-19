@@ -311,7 +311,7 @@ Order of functions is important."
   (terraform-mode--builtin-with-property-highlight-match terraform-mode--variable-type-builtins-highlight 'terraform-mode-variable-block limit))
 
 (defconst terraform-mode--reference-keywords-highlight
-  (rx word-start (group (or "var" "local" "module")) word-end))
+  (rx word-start (group (or "var" "local" "module" "data")) word-end))
 
 (defconst terraform-mode--block-builtins-with-type-highlight
   (rx line-start (zero-or-more space)
