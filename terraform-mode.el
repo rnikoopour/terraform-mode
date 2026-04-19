@@ -52,6 +52,11 @@
     table)
   "Syntax table for `terraform-mode'.")
 
+;; Keyword groups shared across propertizing and highlighting
+(rx-define terraform-mode--block-with-type-only   (or "backend" "provider_meta" "resource" "data"))
+(rx-define terraform-mode--block-with-name-only   "variable")
+(rx-define terraform-mode--block-with-type-and-name (or "resource" "data"))
+
 ;; Text Propertizing
 (defun terraform-mode--text-propertize-block (regexp property start end depth &optional required-property)
   "Mark contents of blocks matched by REGEXP with PROPERTY as a text property.
@@ -101,46 +106,42 @@ When REQUIRED-PROPERTY is non-nil, only mark blocks where that property is set a
       "\"" (one-or-more (not (any "\""))) "\""
       (zero-or-more space) "{"))
 
-(eval-and-compile
-  (defconst terraform-mode--block-builtins-with-type-propertize
-    (rx line-start (zero-or-more space)
-	(group (or "backend" "provider_meta" "resource" "data"))
-	(one-or-more space)
-	(group (group "\"") (one-or-more (not (any "\""))) (group "\""))))
+(defconst terraform-mode--label-bearing-keywords-propertize
+  (rx line-start (zero-or-more space)
+      (group (or terraform-mode--block-with-type-only terraform-mode--block-with-name-only))
+      (one-or-more space)))
 
-  (defconst terraform-mode--block-builtins-with-name-propertize
-    (rx line-start (zero-or-more space)
-	(group "variable")
-	(one-or-more space)
-	(group (group "\"") (one-or-more (not (any "\""))) (group "\""))))
+(defun terraform-mode--propertize-quote-as-punct (pos)
+  "Mark the double-quote character at POS as punctuation."
+  (put-text-property pos (1+ pos) 'syntax-table (string-to-syntax ".")))
 
-  (defconst terraform-mode--block-builtins-with-type-and-name-propertize
-    (rx line-start (zero-or-more space)
-	(group (or "resource" "data"))
-	(one-or-more space)
-	(group (group "\"") (one-or-more (not (any "\""))) (group "\""))
-	(one-or-more space)
-	(group (group "\"") (one-or-more (not (any "\""))) (group "\"")))))
+(defun terraform-mode--propertize-next-label ()
+  "Propertize the label starting at point.
+Point must be on an opening double-quote.  Marks it as punctuation, then
+scans forward to mark the closing quote as punctuation if present.
+Leaves point after the closing quote (if found) or before the terminator.
+Returns non-nil if an opening quote was found."
+  (when (= (char-after) ?\")
+    (terraform-mode--propertize-quote-as-punct (point))
+    (forward-char 1)
+    (when (re-search-forward (rx (or "\"" space "\n")) nil t)
+      (if (= (char-before) ?\")
+          (terraform-mode--propertize-quote-as-punct (1- (point)))
+        (goto-char (1- (point)))))
+    t))
 
 (defun terraform-mode--builtins-with-type-propertize-match (start end)
-  "Add text property to Terraform blocks with type.
-This prevents `font-lock-string-face' from being applied.
-Applies to region [START, END]."
+  "Progressively propertize label quotes in [START, END].
+Marks opening and closing quotes of block labels as punctuation to
+suppress `font-lock-string-face' on their contents."
   (goto-char start)
-  (funcall
-   (syntax-propertize-rules
-    (terraform-mode--block-builtins-with-type-and-name-propertize
-     (3 ".")
-     (4 ".")
-     (6 ".")
-     (7 "."))
-    (terraform-mode--block-builtins-with-type-propertize
-     (3 ".")
-     (4 "."))
-    (terraform-mode--block-builtins-with-name-propertize
-     (3 ".")
-     (4 ".")))
-   start end))
+  (while (re-search-forward terraform-mode--label-bearing-keywords-propertize end t)
+    (let ((keyword (match-string 1)))
+      (when (terraform-mode--propertize-next-label)
+        (when (member keyword '("resource" "data"))
+          (when (looking-at (rx (one-or-more space)))
+            (goto-char (match-end 0))
+            (terraform-mode--propertize-next-label)))))))
 
 (defun terraform-mode--syntax-propertize (start end)
   "Propertize region from START to END.
@@ -168,7 +169,9 @@ Order of functions is important."
 
 (defconst terraform-mode--block-keywords-highlight
   (rx line-start (zero-or-more space)
-      (group (or "terraform" "resource" "data" "variable" "backend" "provider_meta"))))
+      (group (or "terraform"
+                 terraform-mode--block-with-type-only
+                 terraform-mode--block-with-name-only))))
 
 (defun terraform-mode--block-keywords-highlight-match (limit)
   "Match block-opening keywords at depth 0 up to LIMIT."
@@ -209,13 +212,24 @@ Order of functions is important."
   (terraform-mode--builtin-with-property-highlight-match terraform-mode--variable-type-builtins-highlight 'terraform-mode-variable-block limit))
 
 (defconst terraform-mode--block-builtins-with-type-highlight
-  terraform-mode--block-builtins-with-type-propertize)
+  (rx line-start (zero-or-more space)
+      (group terraform-mode--block-with-type-only)
+      (one-or-more space)
+      (group "\"" (one-or-more (not (any "\"" space "\n"))) (optional "\""))))
 
 (defconst terraform-mode--block-builtins-with-name-highlight
-  terraform-mode--block-builtins-with-name-propertize)
+  (rx line-start (zero-or-more space)
+      (group terraform-mode--block-with-name-only)
+      (one-or-more space)
+      (group "\"" (one-or-more (not (any "\"" space "\n"))) (optional "\""))))
 
 (defconst terraform-mode--block-builtins-with-type-and-name-highlight
-  terraform-mode--block-builtins-with-type-and-name-propertize)
+  (rx line-start (zero-or-more space)
+      (group terraform-mode--block-with-type-and-name)
+      (one-or-more space)
+      (group "\"" (one-or-more (not (any "\"" space "\n"))) (optional "\""))
+      (one-or-more space)
+      (group "\"" (one-or-more (not (any "\"" space "\n"))) (optional "\""))))
 
 (defconst terraform-mode--font-lock-keywords
   `((terraform-mode--block-keywords-highlight-match 1 font-lock-builtin-face)
@@ -233,7 +247,7 @@ Order of functions is important."
     (,terraform-mode--block-builtins-with-type-and-name-highlight
      (1 font-lock-builtin-face)
      (2 font-lock-type-face)
-     (5 font-lock-variable-name-face))))
+     (3 font-lock-variable-name-face))))
 
 
 ;; Development utilities
