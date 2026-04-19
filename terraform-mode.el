@@ -54,7 +54,7 @@
 
 ;; Keyword groups shared across propertizing and highlighting
 (rx-define terraform-mode--block-with-type-only   (or "backend" "provider_meta" "resource" "data" "provider"))
-(rx-define terraform-mode--block-with-name-only   (or "variable" "module" "output"))
+(rx-define terraform-mode--block-with-name-only   (or "variable" "module" "output" "dynamic"))
 (rx-define terraform-mode--block-with-type-and-name (or "resource" "data"))
 
 ;; Text Propertizing
@@ -106,7 +106,7 @@ at the match."
   (rx line-start (zero-or-more space) "required_providers" (zero-or-more space) "{"))
 
 (defconst terraform-mode--variable-block-propertize
-  (rx line-start (zero-or-more space) terraform-mode--block-with-name-only (one-or-more space)
+  (rx line-start (zero-or-more space) "variable" (one-or-more space)
       "\"" (one-or-more (not (any "\""))) "\""
       (zero-or-more space) "{"))
 
@@ -303,6 +303,14 @@ Order of functions is important."
   "Match lifecycle keyword inside resource blocks up to LIMIT."
   (terraform-mode--builtin-with-property-highlight-match terraform-mode--lifecycle-highlight 'terraform-mode-resource-block limit))
 
+(defconst terraform-mode--resource-builtins-highlight
+  (rx line-start (zero-or-more space) (group (or "for_each" "count" "content"))))
+
+(defun terraform-mode--resource-builtins-highlight-match (limit)
+  "Match for_each, count, and content builtins inside resource blocks up to LIMIT."
+  (terraform-mode--builtin-with-property-highlight-match terraform-mode--resource-builtins-highlight 'terraform-mode-resource-block limit))
+
+
 (defconst terraform-mode--each-highlight
   (rx word-start (group "each") (optional "." (group (or "key" "value"))) word-end))
 
@@ -406,6 +414,7 @@ Order of functions is important."
   `((terraform-mode--block-keywords-highlight-match 1 font-lock-builtin-face)
     (terraform-mode--inside-terraform-block-highlight-match 1 font-lock-builtin-face)
     (terraform-mode--module-builtin-highlight-match 1 font-lock-builtin-face)
+    (terraform-mode--resource-builtins-highlight-match 1 font-lock-builtin-face)
     (,terraform-mode--assignment-highlight 1 font-lock-variable-name-face)
     (,terraform-mode--literal-keywords-highlight 1 font-lock-builtin-face)
     (,terraform-mode--builtin-functions-highlight 1 font-lock-builtin-face)
