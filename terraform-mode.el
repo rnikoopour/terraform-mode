@@ -236,6 +236,14 @@ Order of functions is important."
      (5 font-lock-variable-name-face))))
 
 
+;; Development utilities
+
+(defun terraform-mode--reload ()
+  "Unload and reload terraform-mode."
+  (interactive)
+  (unload-feature 'terraform-mode t)
+  (require 'terraform-mode))
+
 ;; Mode Configuration
 
 ;;;###autoload
