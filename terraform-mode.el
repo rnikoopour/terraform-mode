@@ -53,8 +53,8 @@
   "Syntax table for `terraform-mode'.")
 
 ;; Keyword groups shared across propertizing and highlighting
-(rx-define terraform-mode--block-with-type-only   (or "backend" "provider_meta" "resource" "data"))
-(rx-define terraform-mode--block-with-name-only   "variable")
+(rx-define terraform-mode--block-with-type-only   (or "backend" "provider_meta" "resource" "data" "provider"))
+(rx-define terraform-mode--block-with-name-only   (or "variable" "module"))
 (rx-define terraform-mode--block-with-type-and-name (or "resource" "data"))
 
 ;; Text Propertizing
@@ -107,6 +107,11 @@ at the match."
       "\"" (one-or-more (not (any "\""))) "\""
       (zero-or-more space) "{"))
 
+(defconst terraform-mode--module-block-propertize
+  (rx line-start (zero-or-more space) "module" (one-or-more space)
+      "\"" (one-or-more (not (any "\""))) "\""
+      (zero-or-more space) "{"))
+
 
 (defconst terraform-mode--label-bearing-keywords-propertize
   (rx line-start (zero-or-more space)
@@ -152,7 +157,8 @@ Order of functions is important."
   (terraform-mode--text-propertize-block terraform-mode--terraform-block-propertize 'terraform-mode-terraform-block start end 0)
   (terraform-mode--text-propertize-block terraform-mode--required-providers-block-propertize 'terraform-mode-required-providers start end 1 'terraform-mode-terraform-block)
   (terraform-mode--text-propertize-block terraform-mode--variable-block-propertize 'terraform-mode-variable-block start end 0)
-  (terraform-mode--text-propertize-block terraform-mode--resource-block-propertize 'terraform-mode-resource-block start end 0))
+  (terraform-mode--text-propertize-block terraform-mode--resource-block-propertize 'terraform-mode-resource-block start end 0)
+  (terraform-mode--text-propertize-block terraform-mode--module-block-propertize 'terraform-mode-module-block start end 0))
 
 ;; Syntax highlighting
 (defun terraform-mode--builtin-at-depth-highlight-match (regexp depth limit)
