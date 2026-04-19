@@ -94,6 +94,13 @@ When REQUIRED-PROPERTY is non-nil, only mark blocks where that property is set a
       "\"" (one-or-more (not (any "\""))) "\""
       (zero-or-more space) "{"))
 
+(defconst terraform-mode--resource-block-propertize
+  (rx line-start (zero-or-more space) (or "resource" "data") (one-or-more space)
+      "\"" (one-or-more (not (any "\""))) "\""
+      (one-or-more space)
+      "\"" (one-or-more (not (any "\""))) "\""
+      (zero-or-more space) "{"))
+
 (eval-and-compile
   (defconst terraform-mode--block-builtins-with-type-propertize
     (rx line-start (zero-or-more space)
@@ -105,6 +112,15 @@ When REQUIRED-PROPERTY is non-nil, only mark blocks where that property is set a
   (defconst terraform-mode--block-builtins-with-name-propertize
     (rx line-start (zero-or-more space)
 	(group "variable")
+	(one-or-more space)
+	(group (group "\"") (one-or-more (not (any "\""))) (group "\""))
+	(zero-or-more space) "{"))
+
+  (defconst terraform-mode--block-builtins-with-type-and-name-propertize
+    (rx line-start (zero-or-more space)
+	(group (or "resource" "data"))
+	(one-or-more space)
+	(group (group "\"") (one-or-more (not (any "\""))) (group "\""))
 	(one-or-more space)
 	(group (group "\"") (one-or-more (not (any "\""))) (group "\""))
 	(zero-or-more space) "{")))
@@ -121,7 +137,12 @@ Applies to region [START, END]."
      (4 "."))
     (terraform-mode--block-builtins-with-name-propertize
      (3 ".")
-     (4 ".")))
+     (4 "."))
+    (terraform-mode--block-builtins-with-type-and-name-propertize
+     (3 ".")
+     (4 ".")
+     (6 ".")
+     (7 ".")))
    start end))
 
 (defun terraform-mode--syntax-propertize (start end)
@@ -130,7 +151,8 @@ Order of functions is important."
   (terraform-mode--builtins-with-type-propertize-match start end)
   (terraform-mode--text-propertize-block terraform-mode--terraform-block-propertize 'terraform-mode-terraform-block start end 0)
   (terraform-mode--text-propertize-block terraform-mode--required-providers-block-propertize 'terraform-mode-required-providers start end 1 'terraform-mode-terraform-block)
-  (terraform-mode--text-propertize-block terraform-mode--variable-block-propertize 'terraform-mode-variable-block start end 0))
+  (terraform-mode--text-propertize-block terraform-mode--variable-block-propertize 'terraform-mode-variable-block start end 0)
+  (terraform-mode--text-propertize-block terraform-mode--resource-block-propertize 'terraform-mode-resource-block start end 0))
 
 ;; Syntax highlighting
 (defun terraform-mode--builtin-at-depth-highlight-match (regexp depth limit)
@@ -193,6 +215,9 @@ Order of functions is important."
 (defconst terraform-mode--block-builtins-with-name-highlight
   terraform-mode--block-builtins-with-name-propertize)
 
+(defconst terraform-mode--block-builtins-with-type-and-name-highlight
+  terraform-mode--block-builtins-with-type-and-name-propertize)
+
 (defconst terraform-mode--font-lock-keywords
   `((terraform-mode--terraform-block-highlight-match 1 font-lock-builtin-face)
     (terraform-mode--inside-terraform-block-highlight-match 1 font-lock-builtin-face)
@@ -205,7 +230,11 @@ Order of functions is important."
      (2 font-lock-type-face))
     (,terraform-mode--block-builtins-with-name-highlight
      (1 font-lock-builtin-face)
-     (2 font-lock-variable-name-face))))
+     (2 font-lock-variable-name-face))
+    (,terraform-mode--block-builtins-with-type-and-name-highlight
+     (1 font-lock-builtin-face)
+     (2 font-lock-type-face)
+     (5 font-lock-variable-name-face))))
 
 
 ;; Mode Configuration
