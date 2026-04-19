@@ -104,17 +104,15 @@ When REQUIRED-PROPERTY is non-nil, only mark blocks where that property is set a
 (eval-and-compile
   (defconst terraform-mode--block-builtins-with-type-propertize
     (rx line-start (zero-or-more space)
-	(group (or "backend" "provider_meta"))
+	(group (or "backend" "provider_meta" "resource" "data"))
 	(one-or-more space)
-	(group (group "\"") (one-or-more (not (any "\""))) (group "\""))
-	(zero-or-more space) "{"))
+	(group (group "\"") (one-or-more (not (any "\""))) (group "\""))))
 
   (defconst terraform-mode--block-builtins-with-name-propertize
     (rx line-start (zero-or-more space)
 	(group "variable")
 	(one-or-more space)
-	(group (group "\"") (one-or-more (not (any "\""))) (group "\""))
-	(zero-or-more space) "{"))
+	(group (group "\"") (one-or-more (not (any "\""))) (group "\""))))
 
   (defconst terraform-mode--block-builtins-with-type-and-name-propertize
     (rx line-start (zero-or-more space)
@@ -122,8 +120,7 @@ When REQUIRED-PROPERTY is non-nil, only mark blocks where that property is set a
 	(one-or-more space)
 	(group (group "\"") (one-or-more (not (any "\""))) (group "\""))
 	(one-or-more space)
-	(group (group "\"") (one-or-more (not (any "\""))) (group "\""))
-	(zero-or-more space) "{")))
+	(group (group "\"") (one-or-more (not (any "\""))) (group "\"")))))
 
 (defun terraform-mode--builtins-with-type-propertize-match (start end)
   "Add text property to Terraform blocks with type.
@@ -132,17 +129,17 @@ Applies to region [START, END]."
   (goto-char start)
   (funcall
    (syntax-propertize-rules
+    (terraform-mode--block-builtins-with-type-and-name-propertize
+     (3 ".")
+     (4 ".")
+     (6 ".")
+     (7 "."))
     (terraform-mode--block-builtins-with-type-propertize
      (3 ".")
      (4 "."))
     (terraform-mode--block-builtins-with-name-propertize
      (3 ".")
-     (4 "."))
-    (terraform-mode--block-builtins-with-type-and-name-propertize
-     (3 ".")
-     (4 ".")
-     (6 ".")
-     (7 ".")))
+     (4 ".")))
    start end))
 
 (defun terraform-mode--syntax-propertize (start end)
@@ -169,11 +166,13 @@ Order of functions is important."
         (setq found t)))
     found))
 
-(defconst terraform-mode--terraform-keyword-highlight
-  (rx line-start (zero-or-more space) (group "terraform")))
+(defconst terraform-mode--block-keywords-highlight
+  (rx line-start (zero-or-more space)
+      (group (or "terraform" "resource" "data" "variable" "backend" "provider_meta"))))
 
-(defun terraform-mode--terraform-block-highlight-match (limit)
-  (terraform-mode--builtin-at-depth-highlight-match terraform-mode--terraform-keyword-highlight 0 limit))
+(defun terraform-mode--block-keywords-highlight-match (limit)
+  "Match block-opening keywords at depth 0 up to LIMIT."
+  (terraform-mode--builtin-at-depth-highlight-match terraform-mode--block-keywords-highlight 0 limit))
 
 (defconst terraform-mode--block-builtins-inside-terraform-highlight
   (rx line-start (zero-or-more space) (group (or "required_providers" "cloud" "workspaces"))))
@@ -219,7 +218,7 @@ Order of functions is important."
   terraform-mode--block-builtins-with-type-and-name-propertize)
 
 (defconst terraform-mode--font-lock-keywords
-  `((terraform-mode--terraform-block-highlight-match 1 font-lock-builtin-face)
+  `((terraform-mode--block-keywords-highlight-match 1 font-lock-builtin-face)
     (terraform-mode--inside-terraform-block-highlight-match 1 font-lock-builtin-face)
     (,terraform-mode--assignment-highlight 1 font-lock-variable-name-face)
     (terraform-mode--provider-highlight-match 1 font-lock-type-face)
