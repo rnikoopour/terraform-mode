@@ -320,6 +320,32 @@ Order of functions is important."
 (defconst terraform-mode--reference-keywords-highlight
   (rx word-start (group (or "var" "local" "module" "data")) word-end))
 
+(defconst terraform-mode--builtin-functions-highlight
+  (rx word-start
+      (group (or "abspath" "alltrue" "anytrue" "base64decode" "base64encode"
+                 "base64gzip" "base64sha256" "base64sha512" "basename" "bcrypt"
+                 "can" "ceil" "chomp" "chunklist" "cidrhost" "cidrnetmask"
+                 "cidrsubnet" "cidrsubnets" "coalesce" "coalescelist" "compact"
+                 "concat" "contains" "csvdecode" "dirname" "distinct" "element"
+                 "endswith" "ephemeralasnull" "file" "filebase64"
+                 "filebase64sha256" "filebase64sha512" "fileexists" "filemd5"
+                 "fileset" "filesha1" "filesha256" "filesha512" "flatten"
+                 "floor" "format" "formatdate" "formatlist" "indent" "index"
+                 "issensitive" "join" "jsondecode" "jsonencode" "keys" "length"
+                 "log" "lookup" "lower" "matchkeys" "max" "md5" "merge" "min"
+                 "nonsensitive" "one" "parseint" "pathexpand" "plantimestamp"
+                 "pow" "range" "regex" "regexall" "replace" "reverse"
+                 "rsadecrypt" "sensitive" "setintersection" "setproduct"
+                 "setsubtract" "setunion" "sha1" "sha256" "sha512" "signum"
+                 "slice" "sort" "split" "startswith" "strcontains" "strrev"
+                 "substr" "sum" "templatefile" "templatestring"
+                 "textdecodebase64" "textencodebase64" "timeadd" "timecmp"
+                 "timestamp" "title" "tobool" "tolist" "tomap" "tonumber"
+                 "toset" "tostring" "transpose" "trim" "trimprefix" "trimspace"
+                 "trimsuffix" "try" "type" "upper" "urlencode" "uuid" "uuidv5"
+                 "values" "yamldecode" "yamlencode" "zipmap"))
+      "("))
+
 (defconst terraform-mode--block-builtins-with-type-highlight
   (rx line-start (zero-or-more space)
       (group terraform-mode--block-with-type-only)
@@ -346,6 +372,7 @@ Order of functions is important."
     (terraform-mode--module-builtin-highlight-match 1 font-lock-builtin-face)
     (,terraform-mode--assignment-highlight 1 font-lock-variable-name-face)
     (,terraform-mode--boolean-highlight 1 font-lock-builtin-face)
+    (,terraform-mode--builtin-functions-highlight 1 font-lock-builtin-face)
     (,terraform-mode--reference-keywords-highlight 1 font-lock-builtin-face)
     (terraform-mode--lifecycle-highlight-match 1 font-lock-builtin-face)
     (terraform-mode--each-highlight-match
