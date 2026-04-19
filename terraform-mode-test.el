@@ -380,5 +380,16 @@ CHECKS is a list of alists, each with pos and face keys."
                          (alist-get 'content case)
                          (alist-get 'check case))))
 
+(ert-deftest test-terraform-mode--lifecycle ()
+  (dolist (case '(((description . "lifecycle inside resource block gets builtin face")
+                   (content     . "resource \"aws_instance\" \"foo\" {\nlifecycle {\n}\n}")
+                   (check       . (((pos . 33) (face . font-lock-builtin-face)))))
+                  ((description . "lifecycle outside resource block gets no builtin face")
+                   (content     . "lifecycle {}")
+                   (check       . (((pos . 1) (face . nil)))))))
+    (terraform-test-face (alist-get 'description case)
+                         (alist-get 'content case)
+                         (alist-get 'check case))))
+
 (provide 'terraform-mode-test)
 ;;; terraform-mode-test.el ends here
