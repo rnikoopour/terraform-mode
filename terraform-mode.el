@@ -244,6 +244,82 @@ when any part of it changes."
     (unless (and (= new-start start) (= new-end end))
       (cons new-start new-end))))
 
+(defun terraform-mode--for-expression-text-propertize (start end)
+  "Mark for expressions with text properties.
+Clears terraform-mode-for-expression and terraform-mode-for-var in [START, END)
+then rescans from point-min to re-apply across the buffer."
+  (remove-text-properties start end
+                           '(terraform-mode-for-expression nil
+                             terraform-mode-for-var nil))
+  (save-excursion
+    (goto-char (point-min))
+    (while (re-search-forward
+            (rx (or "[" "{") (zero-or-more space) "for" word-end)
+            nil t)
+      (let* ((expr-start (match-beginning 0))
+             (close-char  (if (= (char-after expr-start) ?\[) ?\] ?\})))
+        (skip-chars-forward " \t\n")
+        (let ((var-regions '())
+              (var-names '()))
+          ;; Parse first var name (skip if it is "in", meaning no vars)
+          (when (and (looking-at (rx (group (one-or-more word))))
+                     (not (string= (match-string 1) "in")))
+            (push (cons (match-beginning 1) (match-end 1)) var-regions)
+            (push (match-string 1) var-names)
+            (goto-char (match-end 1))
+            (skip-chars-forward " \t")
+            ;; Optional second var after comma: `for key, val in`
+            (when (looking-at (rx "," (zero-or-more space)
+                                  (group (one-or-more word))))
+              (push (cons (match-beginning 1) (match-end 1)) var-regions)
+              (push (match-string 1) var-names)
+              (goto-char (match-end 0)))
+            (skip-chars-forward " \t\n")
+            ;; Require "in" keyword before scanning the body
+            (when (looking-at (rx "in" word-end))
+              (goto-char (match-end 0))
+              ;; Scan forward tracking bracket depth.
+              ;; depth=1: we are directly inside the outer [ or {.
+              ;; A bare `:` at depth=1 starts the body.
+              ;; Depth reaching 0 on the matching close char ends the expression.
+              (let ((depth 1)
+                    body-start
+                    expr-end)
+                (while (and (not expr-end) (< (point) (point-max)))
+                  (let ((ch (char-after)))
+                    (cond
+                     ((null ch) (setq expr-end (point)))
+                     ((memq ch '(?\[ ?\{ ?\())
+                      (setq depth (1+ depth))
+                      (forward-char 1))
+                     ((memq ch '(?\] ?\} ?\)))
+                      (setq depth (1- depth))
+                      (cond
+                       ((< depth 0) (setq expr-end (point)))
+                       ((and (= depth 0) (= ch close-char))
+                        (forward-char 1)
+                        (setq expr-end (point)))
+                       (t (forward-char 1))))
+                     ((and (= ch ?:) (= depth 1) (not body-start))
+                      (setq body-start (1+ (point)))
+                      (forward-char 1))
+                     (t (forward-char 1)))))
+                (when expr-end
+                  (put-text-property expr-start expr-end
+                                     'terraform-mode-for-expression t)
+                  (dolist (vr var-regions)
+                    (put-text-property (car vr) (cdr vr)
+                                       'terraform-mode-for-var t))
+                  (when body-start
+                    (save-excursion
+                      (goto-char body-start)
+                      (while (re-search-forward
+                              (rx word-start (group (one-or-more word)) word-end)
+                              expr-end t)
+                        (when (member (match-string 1) var-names)
+                          (put-text-property (match-beginning 1) (match-end 1)
+                                             'terraform-mode-for-var t))))))))))))))
+
 (defun terraform-mode--syntax-propertize (start end)
   "Propertize region from START to END.
 Order of functions is important."
@@ -255,7 +331,8 @@ Order of functions is important."
   (terraform-mode--text-propertize-block terraform-mode--variable-block-propertize 'terraform-mode-variable-block start end 0)
   (terraform-mode--text-propertize-block terraform-mode--resource-block-propertize 'terraform-mode-resource-block start end 0)
   (terraform-mode--text-propertize-block terraform-mode--module-block-propertize 'terraform-mode-module-block start end 0)
-  (terraform-mode--text-propertize-block terraform-mode--output-block-propertize 'terraform-mode-output-block start end 0))
+  (terraform-mode--text-propertize-block terraform-mode--output-block-propertize 'terraform-mode-output-block start end 0)
+  (terraform-mode--for-expression-text-propertize start end))
 
 ;; Syntax highlighting
 (defun terraform-mode--builtin-at-depth-highlight-match (regexp depth limit)
@@ -390,6 +467,30 @@ Order of functions is important."
                  "values" "yamldecode" "yamlencode" "zipmap"))
       "("))
 
+(defconst terraform-mode--for-expression-keywords-highlight
+  (rx word-start (group (or "for" "in")) word-end))
+
+(defun terraform-mode--for-expression-keywords-highlight-match (limit)
+  "Match for and in keywords inside for expressions up to LIMIT."
+  (terraform-mode--builtin-with-property-highlight-match
+   terraform-mode--for-expression-keywords-highlight
+   'terraform-mode-for-expression limit))
+
+(defun terraform-mode--for-var-highlight-match (limit)
+  "Match regions marked with terraform-mode-for-var property up to LIMIT."
+  (let (found)
+    (while (and (not found) (< (point) limit))
+      (cond
+       ((get-text-property (point) 'terraform-mode-for-var)
+        (let ((end (next-single-property-change (point) 'terraform-mode-for-var nil limit)))
+          (set-match-data (list (point) end))
+          (goto-char end)
+          (setq found t)))
+       (t
+        (let ((next (next-single-property-change (point) 'terraform-mode-for-var nil limit)))
+          (goto-char next)))))
+    found))
+
 (defconst terraform-mode--block-builtins-with-type-highlight
   (rx line-start (zero-or-more space)
       (group terraform-mode--block-with-type-only)
@@ -414,6 +515,8 @@ Order of functions is important."
   `((terraform-mode--block-keywords-highlight-match 1 font-lock-builtin-face)
     (terraform-mode--inside-terraform-block-highlight-match 1 font-lock-builtin-face)
     (terraform-mode--module-builtin-highlight-match 1 font-lock-builtin-face)
+    (terraform-mode--for-expression-keywords-highlight-match 1 font-lock-builtin-face)
+    (terraform-mode--for-var-highlight-match 0 font-lock-variable-name-face)
     (terraform-mode--resource-builtins-highlight-match 1 font-lock-builtin-face)
     (,terraform-mode--assignment-highlight 1 font-lock-variable-name-face)
     (,terraform-mode--literal-keywords-highlight 1 font-lock-builtin-face)
