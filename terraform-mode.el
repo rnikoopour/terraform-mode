@@ -171,12 +171,21 @@ Order of functions is important."
 
 (defconst terraform-mode--variable-types-highlight
   (rx word-start
-      (group (or "string" "number" "bool" "list" "set" "map" "object"))
+      (group (or "string" "number" "bool" "list" "set" "map" "object" "any"))
       word-end))
 
 (defun terraform-mode--variable-type-highlight-match (limit)
   "Match type keywords inside variable blocks up to LIMIT."
   (terraform-mode--builtin-with-property-highlight-match terraform-mode--variable-types-highlight 'terraform-mode-variable-block limit))
+
+(defconst terraform-mode--variable-type-builtins-highlight
+  (rx word-start
+      (group (or "true" "false" "optional"))
+      word-end))
+
+(defun terraform-mode--variable-type-builtins-highlight-match (limit)
+  "Match builtin values inside variable blocks up to LIMIT."
+  (terraform-mode--builtin-with-property-highlight-match terraform-mode--variable-type-builtins-highlight 'terraform-mode-variable-block limit))
 
 (defconst terraform-mode--block-builtins-with-type-highlight
   terraform-mode--block-builtins-with-type-propertize)
@@ -190,6 +199,7 @@ Order of functions is important."
     (,terraform-mode--assignment-highlight 1 font-lock-variable-name-face)
     (terraform-mode--provider-highlight-match 1 font-lock-type-face)
     (terraform-mode--variable-type-highlight-match 1 font-lock-type-face)
+    (terraform-mode--variable-type-builtins-highlight-match 1 font-lock-builtin-face)
     (,terraform-mode--block-builtins-with-type-highlight
      (1 font-lock-builtin-face)
      (2 font-lock-type-face))
