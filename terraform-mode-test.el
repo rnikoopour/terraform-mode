@@ -154,8 +154,10 @@ CHECKS is a list of alists, each with pos and face keys."
                   ((description . "content after heredoc closer gets no string face")
                    (content     . "<<EOF\nhello\nEOF\nafter")
                    (check       . (((pos . 17) (face . nil)))))
+                  ((description . "non-strip heredoc with indented closer is recognized")
+                   (content     . "<<EOF\nhello\n  EOF\nafter")
+                   (check       . (((pos . 19) (face . nil)))))
                   ((description . "interpolation content inside heredoc gets no string face")
-                   ;; <<EOF\n${var}\nEOF\n — 'v' at pos 9 is inside ${...}
                    (content     . "<<EOF\n${var}\nEOF\n")
                    (check       . (((pos . 9) (face . nil)))))))
     (terraform-test-face (alist-get 'description case)

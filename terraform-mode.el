@@ -201,9 +201,7 @@ Advances point past the heredoc (or to point-max if incomplete)."
       (when strip (forward-char 1))
       (if (looking-at (rx (group (one-or-more (any "A-Za-z0-9_")))))
           (let* ((term (match-string 1))
-                 (close-re (if strip
-                               (concat "^[ \t]*" (regexp-quote term) "[ \t]*$")
-                             (concat "^" (regexp-quote term) "[ \t]*$"))))
+                 (close-re (concat "^[ \t]*" (regexp-quote term) "[ \t]*$")))
             (goto-char (match-end 0))
             (end-of-line)
             (when (< (point) (point-max)) (forward-char 1))
