@@ -553,6 +553,46 @@ Order of functions is important."
   (unload-feature 'terraform-mode t)
   (require 'terraform-mode))
 
+;; Customization
+
+(defgroup terraform nil
+  "Major mode for Terraform configuration files."
+  :group 'languages)
+
+(defcustom terraform-command "terraform"
+  "Command to run terraform."
+  :type 'string
+  :group 'terraform)
+
+(defcustom terraform-format-on-save nil
+  "When non-nil, run `terraform-format-buffer' before saving."
+  :type 'boolean
+  :group 'terraform)
+
+;; Formatting
+
+(defun terraform-format-region (beg end)
+  "Rewrite region BEG to END in canonical format using terraform fmt."
+  (interactive "r")
+  (let ((buf (get-buffer-create "*terraform-fmt*")))
+    (if (zerop (call-process-region beg end terraform-command nil buf nil
+                                    "fmt" "-no-color" "-"))
+        (let ((win-start (window-start)))
+          (delete-region beg end)
+          (goto-char beg)
+          (insert-buffer-substring buf)
+          (set-window-start nil win-start))
+      (message "terraform fmt: %s"
+               (with-current-buffer buf (buffer-string))))
+    (kill-buffer buf)))
+
+(defun terraform-format-buffer ()
+  "Rewrite current buffer in canonical format using terraform fmt."
+  (interactive)
+  (let ((pos (point)))
+    (terraform-format-region (point-min) (point-max))
+    (goto-char pos)))
+
 ;; Mode Configuration
 
 (defun terraform-mode--indent-line ()
@@ -609,7 +649,9 @@ line, regardless of how many brackets opened on that line."
   (setq-local font-lock-defaults '(terraform-mode--font-lock-keywords nil nil))
   (setq-local syntax-propertize-function #'terraform-mode--syntax-propertize)
   (add-hook 'syntax-propertize-extend-region-functions
-            #'terraform-mode--syntax-propertize-extend-region nil t))
+            #'terraform-mode--syntax-propertize-extend-region nil t)
+  (when terraform-format-on-save
+    (add-hook 'before-save-hook #'terraform-format-buffer nil t)))
 
 (define-key terraform-mode-map (kbd "<backtab>") #'terraform-mode--unindent)
 
