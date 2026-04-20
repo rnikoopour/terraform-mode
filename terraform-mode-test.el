@@ -139,6 +139,25 @@ CHECKS is a list of alists, each with pos and face keys."
   (terraform-test-with-buffer "\"$${literal}\""
     (should (terraform-test-string-p 5))))
 
+;;; Heredoc syntax
+
+(ert-deftest test-terraform-mode--heredoc ()
+  (dolist (case '(((description . "heredoc content gets string face")
+                   (content     . "<<EOF\nhello\nEOF\n")
+                   (check       . (((pos . 7) (face . font-lock-string-face)))))
+                  ((description . "indent-strip heredoc content gets string face")
+                   (content     . "<<-EOF\n  hello\n  EOF\n")
+                   (check       . (((pos . 10) (face . font-lock-string-face)))))
+                  ((description . "incomplete heredoc content gets string face")
+                   (content     . "<<EOF\nhello")
+                   (check       . (((pos . 7) (face . font-lock-string-face)))))
+                  ((description . "content after heredoc closer gets no string face")
+                   (content     . "<<EOF\nhello\nEOF\nafter")
+                   (check       . (((pos . 17) (face . nil)))))))
+    (terraform-test-face (alist-get 'description case)
+                         (alist-get 'content case)
+                         (alist-get 'check case))))
+
 ;;; Bracket syntax
 
 (ert-deftest terraform-mode-curly-brackets ()

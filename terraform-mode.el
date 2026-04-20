@@ -163,10 +163,88 @@ suppress `font-lock-string-face' on their contents."
             (goto-char (match-end 0))
             (terraform-mode--propertize-next-label)))))))
 
-(defun terraform-mode--string-interpolation-propertize-regexp ()
-  "Mark ${...} in strings so interpolation content is parsed as code.
-Marks the enclosing quotes and the interpolation braces with generic-string
-delimiter syntax, splitting the string at each ${...} boundary."
+(defun terraform-mode--propertize-heredoc ()
+  "Propertize the heredoc starting at point.
+Expects point to be at the first '<' of '<<TERM' or '<<-TERM'.
+Advances point past the heredoc (or to point-max if incomplete)."
+  (let ((open-pos (point)))
+    (forward-char 2)
+    (let ((strip (eq (char-after) ?-)))
+      (when strip (forward-char 1))
+      (if (looking-at (rx (group (one-or-more (any "A-Za-z0-9_")))))
+          (let* ((term (match-string 1))
+                 (close-re (if strip
+                               (concat "^[ \t]*" (regexp-quote term) "[ \t]*$")
+                             (concat "^" (regexp-quote term) "[ \t]*$"))))
+            (goto-char (match-end 0))
+            (end-of-line)
+            (when (< (point) (point-max)) (forward-char 1))
+            (if (re-search-forward close-re nil t)
+                (let ((close-nl (line-end-position)))
+                  (put-text-property open-pos (1+ open-pos)
+                                     'syntax-table (string-to-syntax "|"))
+                  (put-text-property close-nl (1+ close-nl)
+                                     'syntax-table (string-to-syntax "|"))
+                  (goto-char (min (1+ close-nl) (point-max))))
+              ;; Incomplete: mark to end of buffer
+              (put-text-property open-pos (1+ open-pos)
+                                 'syntax-table (string-to-syntax "|"))
+              (goto-char (point-max))))
+        ;; << but not a valid heredoc term: back up and let the loop advance
+        (forward-char -1)))))
+
+(defun terraform-mode--propertize-interpolated-string ()
+  "Propertize the double-quoted string starting at point.
+When the string contains '${...}' interpolations, applies generic-string
+delimiter syntax to the quote and brace boundaries so interpolation content
+is parsed as code rather than as part of the string.
+Advances point past the closing quote (or to point-max if unclosed)."
+  (let ((open-pos (point))
+        (brace-pairs nil)
+        (close-pos nil))
+    (forward-char 1)
+    (catch 'done
+      (while (< (point) (point-max))
+        (cond
+         ((eq (char-after) ?\\)
+          (forward-char 2))
+         ((eq (char-after) ?\")
+          (setq close-pos (point))
+          (forward-char 1)
+          (throw 'done nil))
+         ((and (eq (char-after) ?$)
+               (eq (char-after (1+ (point))) ?{)
+               (not (eq (char-before) ?$)))
+          (let ((brace-open (1+ (point))))
+            (forward-char 2)
+            (let ((depth 1))
+              (while (and (> depth 0) (< (point) (point-max)))
+                (cond
+                 ((eq (char-after) ?{)
+                  (setq depth (1+ depth))
+                  (forward-char 1))
+                 ((eq (char-after) ?})
+                  (setq depth (1- depth))
+                  (when (= depth 0)
+                    (push (cons brace-open (point)) brace-pairs))
+                  (forward-char 1))
+                 (t (forward-char 1)))))))
+         (t (forward-char 1)))))
+    (when brace-pairs
+      (put-text-property open-pos (1+ open-pos)
+                         'syntax-table (string-to-syntax "|"))
+      (when close-pos
+        (put-text-property close-pos (1+ close-pos)
+                           'syntax-table (string-to-syntax "|")))
+      (dolist (pair brace-pairs)
+        (put-text-property (car pair) (1+ (car pair))
+                           'syntax-table (string-to-syntax "|"))
+        (put-text-property (cdr pair) (1+ (cdr pair))
+                           'syntax-table (string-to-syntax "|"))))))
+
+(defun terraform-mode--propertize-string-literals ()
+  "Scan the buffer and apply syntax-table properties to strings and heredocs.
+Skips comments so their contents are not mistakenly propertized."
   (save-excursion
     (goto-char (point-min))
     (while (< (point) (point-max))
@@ -179,49 +257,11 @@ delimiter syntax, splitting the string at each ${...} boundary."
        ((and (eq (char-after) ?/)
              (eq (char-after (1+ (point))) ?*))
         (or (search-forward "*/" nil t) (goto-char (point-max))))
+       ((and (eq (char-after) ?<)
+             (eq (char-after (1+ (point))) ?<))
+        (terraform-mode--propertize-heredoc))
        ((eq (char-after) ?\")
-        (let ((open-pos (point))
-              (brace-pairs nil)
-              (close-pos nil))
-          (forward-char 1)
-          (catch 'done
-            (while (< (point) (point-max))
-              (cond
-               ((eq (char-after) ?\\)
-                (forward-char 2))
-               ((eq (char-after) ?\")
-                (setq close-pos (point))
-                (forward-char 1)
-                (throw 'done nil))
-               ((and (eq (char-after) ?$)
-                     (eq (char-after (1+ (point))) ?{)
-                     (not (eq (char-before) ?$)))
-                (let ((brace-open (1+ (point))))
-                  (forward-char 2)
-                  (let ((depth 1))
-                    (while (and (> depth 0) (< (point) (point-max)))
-                      (cond
-                       ((eq (char-after) ?{)
-                        (setq depth (1+ depth))
-                        (forward-char 1))
-                       ((eq (char-after) ?})
-                        (setq depth (1- depth))
-                        (when (= depth 0)
-                          (push (cons brace-open (point)) brace-pairs))
-                        (forward-char 1))
-                       (t (forward-char 1)))))))
-               (t (forward-char 1)))))
-          (when brace-pairs
-            (put-text-property open-pos (1+ open-pos)
-                               'syntax-table (string-to-syntax "|"))
-            (when close-pos
-              (put-text-property close-pos (1+ close-pos)
-                                 'syntax-table (string-to-syntax "|")))
-            (dolist (pair brace-pairs)
-              (put-text-property (car pair) (1+ (car pair))
-                                 'syntax-table (string-to-syntax "|"))
-              (put-text-property (cdr pair) (1+ (cdr pair))
-                                 'syntax-table (string-to-syntax "|"))))))
+        (terraform-mode--propertize-interpolated-string))
        (t (forward-char 1))))))
 
 (defun terraform-mode--syntax-propertize-extend-region (start end)
@@ -260,30 +300,30 @@ then rescans from point-min to re-apply across the buffer."
         (skip-chars-forward " \t\n")
         (let ((var-regions '())
               (var-names '()))
-          ;; Parse first var name (skip if it is "in", meaning no vars)
-          (when (and (looking-at (rx (group (one-or-more word))))
-                     (not (string= (match-string 1) "in")))
-            (push (cons (match-beginning 1) (match-end 1)) var-regions)
-            (push (match-string 1) var-names)
-            (goto-char (match-end 1))
-            (skip-chars-forward " \t")
-            ;; Optional second var after comma: `for key, val in`
-            (when (looking-at (rx "," (zero-or-more space)
-                                  (group (one-or-more word))))
+          (let (body-start
+                expr-end)
+            ;; Parse first var name (skip if it is "in", meaning no vars)
+            (when (and (looking-at (rx (group (one-or-more word))))
+                       (not (string= (match-string 1) "in")))
               (push (cons (match-beginning 1) (match-end 1)) var-regions)
               (push (match-string 1) var-names)
-              (goto-char (match-end 0)))
-            (skip-chars-forward " \t\n")
-            ;; Require "in" keyword before scanning the body
+              (goto-char (match-end 1))
+              (skip-chars-forward " \t")
+              ;; Optional second var after comma: `for key, val in`
+              (when (looking-at (rx "," (zero-or-more space)
+                                    (group (one-or-more word))))
+                (push (cons (match-beginning 1) (match-end 1)) var-regions)
+                (push (match-string 1) var-names)
+                (goto-char (match-end 0)))
+              (skip-chars-forward " \t\n"))
+            ;; If "in" is present, scan the body for the closing bracket
             (when (looking-at (rx "in" word-end))
               (goto-char (match-end 0))
               ;; Scan forward tracking bracket depth.
               ;; depth=1: we are directly inside the outer [ or {.
               ;; A bare `:` at depth=1 starts the body.
               ;; Depth reaching 0 on the matching close char ends the expression.
-              (let ((depth 1)
-                    body-start
-                    expr-end)
+              (let ((depth 1))
                 (while (and (not expr-end) (< (point) (point-max)))
                   (let ((ch (char-after)))
                     (cond
@@ -302,27 +342,45 @@ then rescans from point-min to re-apply across the buffer."
                      ((and (= ch ?:) (= depth 1) (not body-start))
                       (setq body-start (1+ (point)))
                       (forward-char 1))
-                     (t (forward-char 1)))))
-                (when expr-end
-                  (put-text-property expr-start expr-end
-                                     'terraform-mode-for-expression t)
-                  (dolist (vr var-regions)
-                    (put-text-property (car vr) (cdr vr)
-                                       'terraform-mode-for-var t))
-                  (when body-start
-                    (save-excursion
-                      (goto-char body-start)
-                      (while (re-search-forward
-                              (rx word-start (group (one-or-more word)) word-end)
-                              expr-end t)
-                        (when (member (match-string 1) var-names)
-                          (put-text-property (match-beginning 1) (match-end 1)
-                                             'terraform-mode-for-var t))))))))))))))
+                     (t (forward-char 1)))))))
+            (cond
+             (expr-end
+              (put-text-property expr-start expr-end
+                                 'terraform-mode-for-expression t)
+              (dolist (vr var-regions)
+                (put-text-property (car vr) (cdr vr)
+                                   'terraform-mode-for-var t))
+              (when body-start
+                (save-excursion
+                  (goto-char body-start)
+                  (while (re-search-forward
+                          (rx word-start (group (one-or-more word)) word-end)
+                          expr-end t)
+                    (when (member (match-string 1) var-names)
+                      (put-text-property (match-beginning 1) (match-end 1)
+                                         'terraform-mode-for-var t))))))
+             ;; Incomplete expression (no "in" yet or no closing bracket):
+             ;; mark what we can so highlights appear while the user is typing.
+             ((< expr-start end)
+              (put-text-property expr-start end
+                                 'terraform-mode-for-expression t)
+              (dolist (vr var-regions)
+                (put-text-property (car vr) (cdr vr)
+                                   'terraform-mode-for-var t))
+              (when body-start
+                (save-excursion
+                  (goto-char body-start)
+                  (while (re-search-forward
+                          (rx word-start (group (one-or-more word)) word-end)
+                          end t)
+                    (when (member (match-string 1) var-names)
+                      (put-text-property (match-beginning 1) (match-end 1)
+                                         'terraform-mode-for-var t)))))))))))))
 
 (defun terraform-mode--syntax-propertize-regexp (start end)
   "Propertize region from START to END.
 Order of functions is important."
-  (terraform-mode--string-interpolation-propertize-regexp)
+  (terraform-mode--propertize-string-literals)
   (terraform-mode--builtins-with-type-propertize-match start end)
   (terraform-mode--text-propertize-block terraform-mode--terraform-block-propertize-regexp 'terraform-mode-terraform-block start end 0)
   (terraform-mode--text-propertize-block terraform-mode--locals-block-propertize-regexp 'terraform-mode-locals-block start end 0)
@@ -385,7 +443,6 @@ Order of functions is important."
 (defun terraform-mode--resource-builtins-highlight-match (limit)
   "Match for_each, count, and content builtins inside resource blocks up to LIMIT."
   (terraform-mode--builtin-with-property-highlight-match terraform-mode--resource-builtins-highlight-regexp '(terraform-mode-resource-block) limit))
-
 
 (defconst terraform-mode--each-highlight-regexp
   (rx word-start (group "each") (optional "." (group (or "key" "value"))) word-end))
