@@ -254,7 +254,7 @@ then rescans from point-min to re-apply across the buffer."
   (save-excursion
     (goto-char (point-min))
     (while (re-search-forward
-            (rx (or "[" "{") (zero-or-more space) "for" word-end)
+            (rx (or "[" "{") (zero-or-more (any " \t\n")) "for" word-end)
             nil t)
       (let* ((expr-start (match-beginning 0))
              (close-char  (if (= (char-after expr-start) ?\[) ?\] ?\})))
