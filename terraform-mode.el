@@ -590,6 +590,51 @@ Order of functions is important."
   (interactive)
   (terraform-format-region (point-min) (point-max)))
 
+;; imenu
+
+(defun terraform-mode--imenu-index ()
+  "Build imenu index for Terraform buffers."
+  (let ((index (make-hash-table :test #'equal)))
+    (save-excursion
+      (save-match-data
+        (goto-char (point-min))
+        (while (re-search-forward
+                (rx line-start (zero-or-more space)
+                    (group (or "resource" "data")) (one-or-more space)
+                    "\"" (group (one-or-more (not (any "\"")))) "\""
+                    (one-or-more space)
+                    "\"" (group (one-or-more (not (any "\"")))) "\"")
+                nil t)
+          (let ((keyword (match-string-no-properties 1))
+                (type    (match-string-no-properties 2))
+                (name    (match-string-no-properties 3))
+                (pos     (match-beginning 0)))
+            (push (cons (concat type "/" name) pos)
+                  (gethash keyword index))))
+        (goto-char (point-min))
+        (while (re-search-forward
+                (rx line-start (zero-or-more space)
+                    (group (or "variable" "module" "output")) (one-or-more space)
+                    "\"" (group (one-or-more (not (any "\"")))) "\"")
+                nil t)
+          (let ((keyword (match-string-no-properties 1))
+                (name    (match-string-no-properties 2))
+                (pos     (match-beginning 0)))
+            (push (cons name pos) (gethash keyword index))))
+        (goto-char (point-min))
+        (while (re-search-forward
+                (rx line-start (zero-or-more space)
+                    (group "provider") (one-or-more space)
+                    "\"" (group (one-or-more (not (any "\"")))) "\"")
+                nil t)
+          (let ((keyword (match-string-no-properties 1))
+                (name    (match-string-no-properties 2))
+                (pos     (match-beginning 0)))
+            (push (cons name pos) (gethash keyword index))))))
+    (let ((result '()))
+      (maphash (lambda (k v) (push (cons k (nreverse v)) result)) index)
+      result)))
+
 ;; Mode Configuration
 
 (defun terraform-mode--indent-line ()
@@ -647,6 +692,8 @@ line, regardless of how many brackets opened on that line."
   (setq-local syntax-propertize-function #'terraform-mode--syntax-propertize)
   (add-hook 'syntax-propertize-extend-region-functions
             #'terraform-mode--syntax-propertize-extend-region nil t)
+  (setq-local imenu-create-index-function #'terraform-mode--imenu-index)
+  (setq-local imenu-sort-function #'imenu--sort-by-name)
   (when terraform-format-on-save
     (add-hook 'before-save-hook #'terraform-format-buffer nil t)))
 
