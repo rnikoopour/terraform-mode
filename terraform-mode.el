@@ -5,7 +5,6 @@
 ;; Original Author: Syohei YOSHIDA <syohex@gmail.com>
 ;; Original URL: https://github.com/syohex/emacs-terraform-mode
 
-;; Rewrite Author: Reza Nikoopour <rnikoopour@gmail.com>
 ;; Version: 2.0.0
 ;; Package-Requires: ((emacs "30.1"))
 ;; Keywords: languages terraform
@@ -227,7 +226,7 @@ delimiter syntax, splitting the string at each ${...} boundary."
 
 (defun terraform-mode--syntax-propertize-extend-region (start end)
   "Extend [START, END) to cover the enclosing top-level block.
-Ensures syntax-propertize and font-lock both run on the full block
+Ensures 'syntax-propertize' and font-lock both run on the full block
 when any part of it changes."
   (let ((new-start start)
         (new-end end))
@@ -340,12 +339,12 @@ Order of functions is important."
   (and (re-search-forward regexp limit t)
        (= (nth 0 (syntax-ppss (match-beginning 0))) depth)))
 
-(defun terraform-mode--builtin-with-property-highlight-match (regexp property limit)
-  "Search for REGEXP up to LIMIT and match only where PROPERTY is set."
+(defun terraform-mode--builtin-with-property-highlight-match (regexp properties limit)
+  "Search for REGEXP up to LIMIT and match only where at least one of PROPERTIES is set."
   (let (found)
     (while (and (not found)
                 (re-search-forward regexp limit t))
-      (when (get-text-property (match-beginning 0) property)
+      (when (seq-some (lambda (p) (get-text-property (match-beginning 0) p)) properties)
         (setq found t)))
     found))
 
@@ -364,28 +363,28 @@ Order of functions is important."
   (rx line-start (zero-or-more space) (group (or "required_providers" "cloud" "workspaces"))))
 
 (defun terraform-mode--inside-terraform-block-highlight-match (limit)
-  (terraform-mode--builtin-with-property-highlight-match terraform-mode--block-builtins-inside-terraform-highlight 'terraform-mode-terraform-block limit))
+  (terraform-mode--builtin-with-property-highlight-match terraform-mode--block-builtins-inside-terraform-highlight '(terraform-mode-terraform-block) limit))
 
 (defconst terraform-mode--resource-sub-block-highlight
   (rx line-start (zero-or-more space) (group (one-or-more word)) (zero-or-more space) "{"))
 
 (defun terraform-mode--resource-sub-block-highlight-match (limit)
   "Match sub-block labels inside resource blocks up to LIMIT."
-  (terraform-mode--builtin-with-property-highlight-match terraform-mode--resource-sub-block-highlight 'terraform-mode-resource-block limit))
+  (terraform-mode--builtin-with-property-highlight-match terraform-mode--resource-sub-block-highlight '(terraform-mode-resource-block) limit))
 
 (defconst terraform-mode--lifecycle-highlight
   (rx line-start (zero-or-more space) (group "lifecycle")))
 
 (defun terraform-mode--lifecycle-highlight-match (limit)
   "Match lifecycle keyword inside resource blocks up to LIMIT."
-  (terraform-mode--builtin-with-property-highlight-match terraform-mode--lifecycle-highlight 'terraform-mode-resource-block limit))
+  (terraform-mode--builtin-with-property-highlight-match terraform-mode--lifecycle-highlight '(terraform-mode-resource-block) limit))
 
 (defconst terraform-mode--resource-builtins-highlight
   (rx line-start (zero-or-more space) (group (or "for_each" "count" "content"))))
 
 (defun terraform-mode--resource-builtins-highlight-match (limit)
   "Match for_each, count, and content builtins inside resource blocks up to LIMIT."
-  (terraform-mode--builtin-with-property-highlight-match terraform-mode--resource-builtins-highlight 'terraform-mode-resource-block limit))
+  (terraform-mode--builtin-with-property-highlight-match terraform-mode--resource-builtins-highlight '(terraform-mode-resource-block) limit))
 
 
 (defconst terraform-mode--each-highlight
@@ -393,14 +392,14 @@ Order of functions is important."
 
 (defun terraform-mode--each-highlight-match (limit)
   "Match each and each.key/each.value inside resource blocks up to LIMIT."
-  (terraform-mode--builtin-with-property-highlight-match terraform-mode--each-highlight 'terraform-mode-resource-block limit))
+  (terraform-mode--builtin-with-property-highlight-match terraform-mode--each-highlight '(terraform-mode-resource-block) limit))
 
 (defconst terraform-mode--provider-highlight
   (rx line-start (zero-or-more space) (group (one-or-more word)) (one-or-more space) "{"))
 
 (defun terraform-mode--provider-highlight-match (limit)
   "Match provider names inside required_providers blocks up to LIMIT."
-  (terraform-mode--builtin-with-property-highlight-match terraform-mode--provider-highlight 'terraform-mode-required-providers limit))
+  (terraform-mode--builtin-with-property-highlight-match terraform-mode--provider-highlight '(terraform-mode-required-providers) limit))
 
 (defconst terraform-mode--assignment-highlight
   (rx (or line-start (any "{,"))
@@ -415,7 +414,7 @@ Order of functions is important."
 
 (defun terraform-mode--module-builtin-highlight-match (limit)
   "Match type keywords inside module blocks up to LIMIT."
-  (terraform-mode--builtin-with-property-highlight-match terraform-mode--module-builtins-highlight 'terraform-mode-module-block limit))
+  (terraform-mode--builtin-with-property-highlight-match terraform-mode--module-builtins-highlight '(terraform-mode-module-block) limit))
 
 (defconst terraform-mode--variable-types-highlight
   (rx word-start
@@ -424,7 +423,7 @@ Order of functions is important."
 
 (defun terraform-mode--variable-type-highlight-match (limit)
   "Match type keywords inside variable blocks up to LIMIT."
-  (terraform-mode--builtin-with-property-highlight-match terraform-mode--variable-types-highlight 'terraform-mode-variable-block limit))
+  (terraform-mode--builtin-with-property-highlight-match terraform-mode--variable-types-highlight '(terraform-mode-variable-block) limit))
 
 (defconst terraform-mode--literal-keywords-highlight
   (rx word-start (group (or "true" "false" "null")) word-end))
@@ -434,7 +433,7 @@ Order of functions is important."
 
 (defun terraform-mode--variable-type-builtins-highlight-match (limit)
   "Match builtin values inside variable blocks up to LIMIT."
-  (terraform-mode--builtin-with-property-highlight-match terraform-mode--variable-type-builtins-highlight 'terraform-mode-variable-block limit))
+  (terraform-mode--builtin-with-property-highlight-match terraform-mode--variable-type-builtins-highlight '(terraform-mode-variable-block) limit))
 
 (defconst terraform-mode--reference-keywords-highlight
   (rx word-start (group (or "var" "local" "module" "data")) word-end))
@@ -469,6 +468,16 @@ Order of functions is important."
                  "values" "yamldecode" "yamlencode" "zipmap"))
       "("))
 
+(defconst terraform-mode--all-block-properties
+  '(terraform-mode-terraform-block
+    terraform-mode-locals-block
+    terraform-mode-required-providers
+    terraform-mode-variable-block
+    terraform-mode-resource-block
+    terraform-mode-module-block
+    terraform-mode-output-block
+    terraform-mode-for-expression))
+
 (defconst terraform-mode--for-expression-keywords-highlight
   (rx word-start (group (or "for" "in")) word-end))
 
@@ -476,7 +485,7 @@ Order of functions is important."
   "Match for and in keywords inside for expressions up to LIMIT."
   (terraform-mode--builtin-with-property-highlight-match
    terraform-mode--for-expression-keywords-highlight
-   'terraform-mode-for-expression limit))
+   '(terraform-mode-for-expression) limit))
 
 (defun terraform-mode--for-var-highlight-match (limit)
   "Match regions marked with terraform-mode-for-var property up to LIMIT."
@@ -513,6 +522,36 @@ Order of functions is important."
       (one-or-more space)
       (group "\"" (one-or-more (not (any "\"" space "\n"))) (optional "\""))))
 
+(defun terraform-mode--assignment-highlight-match (limit)
+  "Match assignment targets inside any block up to LIMIT."
+  (terraform-mode--builtin-with-property-highlight-match
+   terraform-mode--assignment-highlight
+   terraform-mode--all-block-properties limit))
+
+(defun terraform-mode--literal-keywords-highlight-match (limit)
+  "Match true/false/null inside any block up to LIMIT."
+  (terraform-mode--builtin-with-property-highlight-match
+   terraform-mode--literal-keywords-highlight
+   terraform-mode--all-block-properties limit))
+
+(defun terraform-mode--negation-highlight-match (limit)
+  "Match negation operator inside any block up to LIMIT."
+  (terraform-mode--builtin-with-property-highlight-match
+   terraform-mode--negation-highlight
+   terraform-mode--all-block-properties limit))
+
+(defun terraform-mode--builtin-functions-highlight-match (limit)
+  "Match builtin function calls inside any block up to LIMIT."
+  (terraform-mode--builtin-with-property-highlight-match
+   terraform-mode--builtin-functions-highlight
+   terraform-mode--all-block-properties limit))
+
+(defun terraform-mode--reference-keywords-highlight-match (limit)
+  "Match reference keywords inside any block up to LIMIT."
+  (terraform-mode--builtin-with-property-highlight-match
+   terraform-mode--reference-keywords-highlight
+   terraform-mode--all-block-properties limit))
+
 (defconst terraform-mode--font-lock-keywords
   `((terraform-mode--block-keywords-highlight-match 1 font-lock-builtin-face)
     (terraform-mode--inside-terraform-block-highlight-match 1 font-lock-builtin-face)
@@ -520,11 +559,11 @@ Order of functions is important."
     (terraform-mode--for-expression-keywords-highlight-match 1 font-lock-builtin-face)
     (terraform-mode--for-var-highlight-match 0 font-lock-variable-name-face)
     (terraform-mode--resource-builtins-highlight-match 1 font-lock-builtin-face)
-    (,terraform-mode--assignment-highlight 1 font-lock-variable-name-face)
-    (,terraform-mode--literal-keywords-highlight 1 font-lock-constant-face)
-    (,terraform-mode--negation-highlight 1 font-lock-builtin-face)
-    (,terraform-mode--builtin-functions-highlight 1 font-lock-builtin-face)
-(,terraform-mode--reference-keywords-highlight 1 font-lock-builtin-face)
+    (terraform-mode--assignment-highlight-match 1 font-lock-variable-name-face)
+    (terraform-mode--literal-keywords-highlight-match 1 font-lock-constant-face)
+    (terraform-mode--negation-highlight-match 1 font-lock-builtin-face)
+    (terraform-mode--builtin-functions-highlight-match 1 font-lock-builtin-face)
+    (terraform-mode--reference-keywords-highlight-match 1 font-lock-builtin-face)
     (terraform-mode--lifecycle-highlight-match 1 font-lock-builtin-face)
     (terraform-mode--resource-sub-block-highlight-match 1 font-lock-variable-name-face)
     (terraform-mode--each-highlight-match
@@ -559,24 +598,115 @@ Order of functions is important."
   "Major mode for Terraform configuration files."
   :group 'languages)
 
-(defcustom terraform-command "terraform"
+(defcustom terraform-mode-command "terraform"
   "Command to run terraform."
   :type 'string
   :group 'terraform)
 
-(defcustom terraform-format-on-save nil
-  "When non-nil, run `terraform-format-buffer' before saving."
+(defcustom terraform-mode-format-on-save nil
+  "When non-nil, run `terraform-mode-format-buffer' before saving."
   :type 'boolean
   :group 'terraform)
 
+;; Provider docs
+
+(defun terraform-mode--extract-provider (resource-name)
+  "Return the provider prefix of RESOURCE-NAME (the part before the first underscore)."
+  (car (split-string resource-name "_")))
+
+(defun terraform-mode--extract-resource (resource-name)
+  "Return the resource suffix of RESOURCE-NAME (everything after the first underscore)."
+  (mapconcat #'identity (cdr (split-string resource-name "_")) "_"))
+
+(defun terraform-mode--provider-source-in-buffer (provider)
+  "Search the current buffer for the source of PROVIDER in required_providers.
+Return the source string (e.g. \"hashicorp/aws\") or nil if not found."
+  (save-excursion
+    (goto-char (point-min))
+    (when (and (re-search-forward (rx line-start "terraform" (zero-or-more blank) "{") nil t)
+               (re-search-forward (rx line-start (zero-or-more blank) "required_providers" (zero-or-more blank) "{") nil t)
+               (re-search-forward (rx line-start (zero-or-more blank)
+                                      (literal provider) (zero-or-more blank) "=" (zero-or-more blank) "{") nil t)
+               (re-search-forward (rx line-start (zero-or-more blank)
+                                      "source" (zero-or-more blank) "=" (zero-or-more blank)
+                                      "\"" (group (one-or-more (any "a-z/"))) "\"") nil t))
+      (match-string 1))))
+
+(defun terraform-mode--provider-source (provider)
+  "Return the registry source for PROVIDER by scanning .tf files.
+Checks the current buffer first, then other .tf files in the same directory.
+Returns an empty string if not found."
+  (let* ((dir (when buffer-file-name (file-name-directory buffer-file-name)))
+         (source (terraform-mode--provider-source-in-buffer provider)))
+    (when (and (not source) dir)
+      (let ((tf-files (directory-files dir nil (rx line-start (one-or-more (any alnum blank "_.-")) ".tf" line-end))))
+        (while (and (not source) tf-files)
+          (with-temp-buffer
+            (insert-file-contents (expand-file-name (pop tf-files) dir))
+            (setq source (terraform-mode--provider-source-in-buffer provider))))))
+    (or source "")))
+
+(defun terraform-mode--provider-namespace-from-cli (provider)
+  "Return the namespace for PROVIDER by running `terraform providers'."
+  (let ((output (shell-command-to-string (concat terraform-mode-command " providers"))))
+    (with-temp-buffer
+      (insert output)
+      (goto-char (point-min))
+      (when (re-search-forward (concat "/\\(.*?\\)/" provider "\\]") nil t)
+        (match-string 1)))))
+
+(defun terraform-mode--resource-doc-url (resource doc-dir)
+  "Return the Terraform registry URL for RESOURCE under DOC-DIR (\"resources\" or \"data-sources\")."
+  (let* ((provider (terraform-mode--extract-provider resource))
+         (resource-name (terraform-mode--extract-resource resource))
+         (source (terraform-mode--provider-source provider)))
+    (when (string-empty-p source)
+      (let ((ns (terraform-mode--provider-namespace-from-cli provider)))
+        (setq source (if ns (concat ns "/" provider) ""))))
+    (if (not (string-empty-p source))
+        (format "https://registry.terraform.io/providers/%s/latest/docs/%s/%s"
+                source doc-dir resource-name)
+      (user-error "Cannot determine provider source for %s" provider))))
+
+(defun terraform-mode--doc-url-at-point ()
+  "Return the registry documentation URL for the resource or data block at point."
+  (save-excursion
+    (goto-char (line-beginning-position))
+    (unless (looking-at-p (rx line-start (or "resource" "data")))
+      (re-search-backward (rx line-start (or "resource" "data")) nil t))
+    (let ((doc-dir (if (equal (word-at-point) "data") "data-sources" "resources")))
+      (forward-symbol 2)
+      (terraform-mode--resource-doc-url (thing-at-point 'symbol) doc-dir))))
+
+(defun terraform-mode-open-doc ()
+  "Open browser at the Terraform registry page for the resource at point."
+  (interactive)
+  (browse-url (terraform-mode--doc-url-at-point)))
+
+(defun terraform-mode-kill-doc-url ()
+  "Copy the Terraform registry URL for the resource at point to the kill ring."
+  (interactive)
+  (let ((url (substring-no-properties (terraform-mode--doc-url-at-point))))
+    (kill-new url)
+    (message "Copied URL: %s" url)))
+
+(defun terraform-mode-insert-doc-comment ()
+  "Insert a comment with the Terraform registry URL above the resource block at point."
+  (interactive)
+  (let ((url (terraform-mode--doc-url-at-point)))
+    (save-excursion
+      (unless (looking-at-p (rx line-start (or "resource" "data")))
+        (re-search-backward (rx line-start (or "resource" "data")) nil t))
+      (insert (format "# %s\n" url)))))
+
 ;; Formatting
 
-(defun terraform-format-region (beg end)
+(defun terraform-mode-format-region (beg end)
   "Rewrite region BEG to END in canonical format using terraform fmt."
   (interactive "r")
   (let ((buf (get-buffer-create "*terraform-fmt*")))
     (unwind-protect
-        (if (zerop (call-process-region beg end terraform-command nil buf nil
+        (if (zerop (call-process-region beg end terraform-mode-command nil buf nil
                                         "fmt" "-no-color" "-"))
             (save-restriction
               (narrow-to-region beg end)
@@ -585,10 +715,10 @@ Order of functions is important."
                    (with-current-buffer buf (buffer-string))))
       (kill-buffer buf))))
 
-(defun terraform-format-buffer ()
+(defun terraform-mode-format-buffer ()
   "Rewrite current buffer in canonical format using terraform fmt."
   (interactive)
-  (terraform-format-region (point-min) (point-max)))
+  (terraform-mode-format-region (point-min) (point-max)))
 
 ;; imenu
 
@@ -632,11 +762,7 @@ Order of functions is important."
                 (pos     (match-beginning 0)))
             (push (cons name pos) (gethash keyword index))))))
     (let ((result '()))
-      (maphash (lambda (k v)
-                 (push (cons k (sort (nreverse v)
-                                     (lambda (a b) (string< (car a) (car b)))))
-                       result))
-               index)
+      (maphash (lambda (k v) (push (cons k (nreverse v)) result)) index)
       (sort result (lambda (a b) (string< (car a) (car b)))))))
 
 ;; Mode Configuration
@@ -683,6 +809,12 @@ line, regardless of how many brackets opened on that line."
       (indent-rigidly (region-beginning) (region-end) (- tab-width))
     (indent-rigidly (line-beginning-position) (line-end-position) (- tab-width))))
 
+;; hideshow
+
+(add-to-list 'hs-special-modes-alist
+             '(terraform-mode "{" "}" "#" nil nil))
+
+
 ;;;###autoload
 (define-derived-mode terraform-mode prog-mode "Terraform"
   "Major mode for editing Terraform files."
@@ -697,10 +829,14 @@ line, regardless of how many brackets opened on that line."
   (add-hook 'syntax-propertize-extend-region-functions
             #'terraform-mode--syntax-propertize-extend-region nil t)
   (setq-local imenu-create-index-function #'terraform-mode--imenu-index)
-  (when terraform-format-on-save
-    (add-hook 'before-save-hook #'terraform-format-buffer nil t)))
+  (setq-local imenu-sort-function #'imenu--sort-by-name)
+  (when terraform-mode-format-on-save
+    (add-hook 'before-save-hook #'terraform-mode-format-buffer nil t)))
 
 (define-key terraform-mode-map (kbd "<backtab>") #'terraform-mode--unindent)
+(define-key terraform-mode-map (kbd "C-c C-t C-w") #'terraform-mode-open-doc)
+(define-key terraform-mode-map (kbd "C-c C-t C-c") #'terraform-mode-kill-doc-url)
+(define-key terraform-mode-map (kbd "C-c C-t C-r") #'terraform-mode-insert-doc-comment)
 
 ;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.tf\\'" . terraform-mode))
