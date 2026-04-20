@@ -562,6 +562,14 @@ CHECKS is a list of alists, each with pos and face keys."
                          (alist-get 'content case)
                          (alist-get 'check case))))
 
+(ert-deftest test-terraform-mode--negation ()
+  (dolist (case '(((description . "! gets builtin face")
+                   (content     . "!var.enabled")
+                   (check       . (((pos . 1) (face . font-lock-builtin-face)))))))
+    (terraform-test-face (alist-get 'description case)
+                         (alist-get 'content case)
+                         (alist-get 'check case))))
+
 (ert-deftest test-terraform-mode--dynamic-block ()
   (dolist (case '(((description . "dynamic keyword gets builtin face inside resource block")
                    (content     . "resource \"aws_instance\" \"foo\" {\ndynamic \"network_interface\" {\n}\n}")
