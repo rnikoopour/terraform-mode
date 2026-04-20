@@ -586,9 +586,9 @@ line, regardless of how many brackets opened on that line."
                  (if (> depth-delta 0)
                      (+ prev-indent tab-width)
                    prev-indent))))))))
-    (if (< (current-column) (current-indentation))
-        (indent-line-to indent)
-      (save-excursion (indent-line-to indent)))))
+    (save-excursion (indent-line-to indent))
+    (when (< (current-column) (current-indentation))
+      (back-to-indentation))))
 
 (defun terraform-mode--unindent ()
   "Unindent the current line or active region by one indent level."
