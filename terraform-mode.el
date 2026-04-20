@@ -632,8 +632,12 @@ Order of functions is important."
                 (pos     (match-beginning 0)))
             (push (cons name pos) (gethash keyword index))))))
     (let ((result '()))
-      (maphash (lambda (k v) (push (cons k (nreverse v)) result)) index)
-      result)))
+      (maphash (lambda (k v)
+                 (push (cons k (sort (nreverse v)
+                                     (lambda (a b) (string< (car a) (car b)))))
+                       result))
+               index)
+      (sort result (lambda (a b) (string< (car a) (car b)))))))
 
 ;; Mode Configuration
 
@@ -693,7 +697,6 @@ line, regardless of how many brackets opened on that line."
   (add-hook 'syntax-propertize-extend-region-functions
             #'terraform-mode--syntax-propertize-extend-region nil t)
   (setq-local imenu-create-index-function #'terraform-mode--imenu-index)
-  (setq-local imenu-sort-function #'imenu--sort-by-name)
   (when terraform-format-on-save
     (add-hook 'before-save-hook #'terraform-format-buffer nil t)))
 
