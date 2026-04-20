@@ -575,23 +575,20 @@ Order of functions is important."
   "Rewrite region BEG to END in canonical format using terraform fmt."
   (interactive "r")
   (let ((buf (get-buffer-create "*terraform-fmt*")))
-    (if (zerop (call-process-region beg end terraform-command nil buf nil
-                                    "fmt" "-no-color" "-"))
-        (let ((win-start (window-start)))
-          (delete-region beg end)
-          (goto-char beg)
-          (insert-buffer-substring buf)
-          (set-window-start nil win-start))
-      (message "terraform fmt: %s"
-               (with-current-buffer buf (buffer-string))))
-    (kill-buffer buf)))
+    (unwind-protect
+        (if (zerop (call-process-region beg end terraform-command nil buf nil
+                                        "fmt" "-no-color" "-"))
+            (save-restriction
+              (narrow-to-region beg end)
+              (replace-buffer-contents buf))
+          (message "terraform fmt: %s"
+                   (with-current-buffer buf (buffer-string))))
+      (kill-buffer buf))))
 
 (defun terraform-format-buffer ()
   "Rewrite current buffer in canonical format using terraform fmt."
   (interactive)
-  (let ((pos (point)))
-    (terraform-format-region (point-min) (point-max))
-    (goto-char pos)))
+  (terraform-format-region (point-min) (point-max)))
 
 ;; Mode Configuration
 
