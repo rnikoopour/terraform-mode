@@ -163,6 +163,34 @@ suppress `font-lock-string-face' on their contents."
             (goto-char (match-end 0))
             (terraform-mode--propertize-next-label)))))))
 
+(defun terraform-mode--mark-interpolation-braces (start end)
+  "Scan [START, END) and apply '|' syntax to each ${...} brace pair boundary."
+  (save-excursion
+    (goto-char start)
+    (while (< (point) end)
+      (cond
+       ((eq (char-after) ?\\)
+        (forward-char 2))
+       ((and (eq (char-after) ?$)
+             (eq (char-after (1+ (point))) ?{)
+             (not (eq (char-before) ?$)))
+        (let ((brace-open (1+ (point))))
+          (forward-char 2)
+          (let ((depth 1))
+            (while (and (> depth 0) (< (point) end))
+              (cond
+               ((eq (char-after) ?{) (setq depth (1+ depth)) (forward-char 1))
+               ((eq (char-after) ?})
+                (setq depth (1- depth))
+                (when (= depth 0)
+                  (put-text-property brace-open (1+ brace-open)
+                                     'syntax-table (string-to-syntax "|"))
+                  (put-text-property (point) (1+ (point))
+                                     'syntax-table (string-to-syntax "|")))
+                (forward-char 1))
+               (t (forward-char 1)))))))
+       (t (forward-char 1))))))
+
 (defun terraform-mode--propertize-heredoc ()
   "Propertize the heredoc starting at point.
 Expects point to be at the first '<' of '<<TERM' or '<<-TERM'.
@@ -179,17 +207,16 @@ Advances point past the heredoc (or to point-max if incomplete)."
             (goto-char (match-end 0))
             (end-of-line)
             (when (< (point) (point-max)) (forward-char 1))
-            (if (re-search-forward close-re nil t)
-                (let ((close-nl (line-end-position)))
-                  (put-text-property open-pos (1+ open-pos)
-                                     'syntax-table (string-to-syntax "|"))
-                  (put-text-property close-nl (1+ close-nl)
-                                     'syntax-table (string-to-syntax "|"))
-                  (goto-char (min (1+ close-nl) (point-max))))
-              ;; Incomplete: mark to end of buffer
+            (let* ((content-start (point))
+                   (complete (re-search-forward close-re nil t))
+                   (content-end (if complete (line-end-position) (point-max))))
               (put-text-property open-pos (1+ open-pos)
                                  'syntax-table (string-to-syntax "|"))
-              (goto-char (point-max))))
+              (when complete
+                (put-text-property content-end (1+ content-end)
+                                   'syntax-table (string-to-syntax "|")))
+              (terraform-mode--mark-interpolation-braces content-start content-end)
+              (goto-char (min (1+ content-end) (point-max)))))
         ;; << but not a valid heredoc term: back up and let the loop advance
         (forward-char -1)))))
 
@@ -200,8 +227,8 @@ delimiter syntax to the quote and brace boundaries so interpolation content
 is parsed as code rather than as part of the string.
 Advances point past the closing quote (or to point-max if unclosed)."
   (let ((open-pos (point))
-        (brace-pairs nil)
-        (close-pos nil))
+        (close-pos nil)
+        (found-interpolation nil))
     (forward-char 1)
     (catch 'done
       (while (< (point) (point-max))
@@ -220,26 +247,23 @@ Advances point past the closing quote (or to point-max if unclosed)."
             (let ((depth 1))
               (while (and (> depth 0) (< (point) (point-max)))
                 (cond
-                 ((eq (char-after) ?{)
-                  (setq depth (1+ depth))
-                  (forward-char 1))
+                 ((eq (char-after) ?{) (setq depth (1+ depth)) (forward-char 1))
                  ((eq (char-after) ?})
                   (setq depth (1- depth))
                   (when (= depth 0)
-                    (push (cons brace-open (point)) brace-pairs))
+                    (put-text-property brace-open (1+ brace-open)
+                                       'syntax-table (string-to-syntax "|"))
+                    (put-text-property (point) (1+ (point))
+                                       'syntax-table (string-to-syntax "|"))
+                    (setq found-interpolation t))
                   (forward-char 1))
                  (t (forward-char 1)))))))
          (t (forward-char 1)))))
-    (when brace-pairs
+    (when found-interpolation
       (put-text-property open-pos (1+ open-pos)
                          'syntax-table (string-to-syntax "|"))
       (when close-pos
         (put-text-property close-pos (1+ close-pos)
-                           'syntax-table (string-to-syntax "|")))
-      (dolist (pair brace-pairs)
-        (put-text-property (car pair) (1+ (car pair))
-                           'syntax-table (string-to-syntax "|"))
-        (put-text-property (cdr pair) (1+ (cdr pair))
                            'syntax-table (string-to-syntax "|"))))))
 
 (defun terraform-mode--propertize-string-literals ()
