@@ -403,7 +403,8 @@ Order of functions is important."
   (terraform-mode--builtin-with-property-highlight-match terraform-mode--provider-highlight 'terraform-mode-required-providers limit))
 
 (defconst terraform-mode--assignment-highlight
-  (rx line-start (zero-or-more space) (group (one-or-more word)) (zero-or-more space) "="))
+  (rx (or line-start (any "{,"))
+      (zero-or-more space) (group (one-or-more word)) (zero-or-more space) "="))
 
 (defconst terraform-mode--module-builtins-highlight
   (rx line-start
