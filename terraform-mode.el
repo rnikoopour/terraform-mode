@@ -555,6 +555,41 @@ Order of functions is important."
 
 ;; Mode Configuration
 
+(defun terraform-mode--indent-line ()
+  "Indent current line based on Terraform style (2-space indentation).
+A line can be at most one indent level deeper than the previous non-blank
+line, regardless of how many brackets opened on that line."
+  (let ((indent
+         (save-excursion
+           (back-to-indentation)
+           (cond
+            ;; Closing bracket: use the indentation of the line that opened it
+            ((looking-at (rx (any "}])")))
+             (let ((opener (nth 1 (syntax-ppss))))
+               (if opener
+                   (save-excursion (goto-char opener) (current-indentation))
+                 0)))
+            ;; Regular line: previous non-blank line's indent, plus one
+            ;; tab-width if that line increased nesting depth at all
+            (t
+             (forward-line -1)
+             (while (and (not (bobp))
+                         (looking-at (rx line-start (zero-or-more space) line-end)))
+               (forward-line -1))
+             (if (bobp)
+                 0
+               (let* ((bol (line-beginning-position))
+                      (eol (line-end-position))
+                      (prev-indent (current-indentation))
+                      (depth-delta (- (nth 0 (syntax-ppss eol))
+                                      (nth 0 (syntax-ppss bol)))))
+                 (if (> depth-delta 0)
+                     (+ prev-indent tab-width)
+                   prev-indent))))))))
+    (if (< (current-column) (current-indentation))
+        (indent-line-to indent)
+      (save-excursion (indent-line-to indent)))))
+
 (defun terraform-mode--unindent ()
   "Unindent the current line or active region by one indent level."
   (interactive)
@@ -570,6 +605,7 @@ Order of functions is important."
   (setq-local comment-end "")
   (setq-local tab-width 2)
   (setq-local indent-tabs-mode nil)
+  (setq-local indent-line-function #'terraform-mode--indent-line)
   (setq-local font-lock-defaults '(terraform-mode--font-lock-keywords nil nil))
   (setq-local syntax-propertize-function #'terraform-mode--syntax-propertize)
   (add-hook 'syntax-propertize-extend-region-functions
