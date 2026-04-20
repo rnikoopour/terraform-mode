@@ -555,6 +555,13 @@ Order of functions is important."
 
 ;; Mode Configuration
 
+(defun terraform-mode--unindent ()
+  "Unindent the current line or active region by one indent level."
+  (interactive)
+  (if (use-region-p)
+      (indent-rigidly (region-beginning) (region-end) (- tab-width))
+    (indent-rigidly (line-beginning-position) (line-end-position) (- tab-width))))
+
 ;;;###autoload
 (define-derived-mode terraform-mode prog-mode "Terraform"
   "Major mode for editing Terraform files."
@@ -567,6 +574,8 @@ Order of functions is important."
   (setq-local syntax-propertize-function #'terraform-mode--syntax-propertize)
   (add-hook 'syntax-propertize-extend-region-functions
             #'terraform-mode--syntax-propertize-extend-region nil t))
+
+(define-key terraform-mode-map (kbd "<backtab>") #'terraform-mode--unindent)
 
 ;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.tf\\'" . terraform-mode))
