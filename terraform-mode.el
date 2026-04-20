@@ -440,7 +440,7 @@ Order of functions is important."
   (rx word-start (group (or "var" "local" "module" "data")) word-end))
 
 (defconst terraform-mode--negation-highlight
-  (rx (group "!")))
+  (rx (group "!") (or (syntax word) "(")))
 
 
 (defconst terraform-mode--builtin-functions-highlight
