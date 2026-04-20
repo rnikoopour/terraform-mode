@@ -70,6 +70,10 @@ CHECKS is a list of alists, each with pos and face keys."
   "terraform-mode activates for .tfvars files."
   (should (equal (cdr (assoc "\\.tfvars\\'" auto-mode-alist)) 'terraform-mode)))
 
+(ert-deftest terraform-mode-auto-mode-tofu ()
+  "terraform-mode activates for .tofu files."
+  (should (equal (cdr (assoc "\\.tofu\\'" auto-mode-alist)) 'terraform-mode)))
+
 ;;; Comment syntax
 
 (ert-deftest terraform-mode-hash-comment ()

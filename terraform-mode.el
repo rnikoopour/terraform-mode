@@ -921,6 +921,8 @@ line, regardless of how many brackets opened on that line."
 (add-to-list 'auto-mode-alist '("\\.tf\\'" . terraform-mode))
 ;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.tfvars\\'" . terraform-mode))
+;;;###autoload
+(add-to-list 'auto-mode-alist '("\\.tofu\\'" . terraform-mode))
 
 (provide 'terraform-mode)
 
