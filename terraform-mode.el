@@ -521,7 +521,7 @@ Order of functions is important."
     (terraform-mode--for-var-highlight-match 0 font-lock-variable-name-face)
     (terraform-mode--resource-builtins-highlight-match 1 font-lock-builtin-face)
     (,terraform-mode--assignment-highlight 1 font-lock-variable-name-face)
-    (,terraform-mode--literal-keywords-highlight 1 font-lock-builtin-face)
+    (,terraform-mode--literal-keywords-highlight 1 font-lock-constant-face)
     (,terraform-mode--negation-highlight 1 font-lock-builtin-face)
     (,terraform-mode--builtin-functions-highlight 1 font-lock-builtin-face)
 (,terraform-mode--reference-keywords-highlight 1 font-lock-builtin-face)
