@@ -576,7 +576,7 @@ line, regardless of how many brackets opened on that line."
              (while (and (not (bobp))
                          (looking-at (rx line-start (zero-or-more space) line-end)))
                (forward-line -1))
-             (if (bobp)
+             (if (looking-at (rx line-start (zero-or-more space) line-end))
                  0
                (let* ((bol (line-beginning-position))
                       (eol (line-end-position))
