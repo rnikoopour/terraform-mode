@@ -561,6 +561,8 @@ Order of functions is important."
   :syntax-table terraform-mode-syntax-table
   (setq-local comment-start "#")
   (setq-local comment-end "")
+  (setq-local tab-width 2)
+  (setq-local indent-tabs-mode nil)
   (setq-local font-lock-defaults '(terraform-mode--font-lock-keywords nil nil))
   (setq-local syntax-propertize-function #'terraform-mode--syntax-propertize)
   (add-hook 'syntax-propertize-extend-region-functions
