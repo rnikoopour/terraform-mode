@@ -95,38 +95,38 @@ at the match."
                    end
                    property t))))))))))
 
-(defconst terraform-mode--terraform-block-propertize
+(defconst terraform-mode--terraform-block-propertize-regexp
   (rx line-start (zero-or-more space) "terraform" (zero-or-more space) "{"))
 
-(defconst terraform-mode--locals-block-propertize
+(defconst terraform-mode--locals-block-propertize-regexp
   (rx line-start (zero-or-more space) "locals" (zero-or-more space) "{"))
 
-(defconst terraform-mode--required-providers-block-propertize
+(defconst terraform-mode--required-providers-block-propertize-regexp
   (rx line-start (zero-or-more space) "required_providers" (zero-or-more space) "{"))
 
-(defconst terraform-mode--variable-block-propertize
+(defconst terraform-mode--variable-block-propertize-regexp
   (rx line-start (zero-or-more space) "variable" (one-or-more space)
       "\"" (one-or-more (not (any "\""))) "\""
       (zero-or-more space) "{"))
 
-(defconst terraform-mode--resource-block-propertize
+(defconst terraform-mode--resource-block-propertize-regexp
   (rx line-start (zero-or-more space) terraform-mode--block-with-type-and-name (one-or-more space)
       "\"" (one-or-more (not (any "\""))) "\""
       (one-or-more space)
       "\"" (one-or-more (not (any "\""))) "\""
       (zero-or-more space) "{"))
 
-(defconst terraform-mode--module-block-propertize
+(defconst terraform-mode--module-block-propertize-regexp
   (rx line-start (zero-or-more space) "module" (one-or-more space)
       "\"" (one-or-more (not (any "\""))) "\""
       (zero-or-more space) "{"))
 
-(defconst terraform-mode--output-block-propertize
+(defconst terraform-mode--output-block-propertize-regexp
   (rx line-start (zero-or-more space) "output" (one-or-more space)
       "\"" (one-or-more (not (any "\""))) "\""
       (zero-or-more space) "{"))
 
-(defconst terraform-mode--label-bearing-keywords-propertize
+(defconst terraform-mode--label-bearing-keywords-propertize-regexp
   (rx line-start (zero-or-more space)
       (group (or terraform-mode--block-with-type-only terraform-mode--block-with-name-only))
       (one-or-more space)))
@@ -155,7 +155,7 @@ Returns non-nil if an opening quote was found."
 Marks opening and closing quotes of block labels as punctuation to
 suppress `font-lock-string-face' on their contents."
   (goto-char start)
-  (while (re-search-forward terraform-mode--label-bearing-keywords-propertize end t)
+  (while (re-search-forward terraform-mode--label-bearing-keywords-propertize-regexp end t)
     (let ((keyword (match-string 1)))
       (when (terraform-mode--propertize-next-label)
         (when (member keyword '("resource" "data"))
@@ -163,7 +163,7 @@ suppress `font-lock-string-face' on their contents."
             (goto-char (match-end 0))
             (terraform-mode--propertize-next-label)))))))
 
-(defun terraform-mode--string-interpolation-propertize ()
+(defun terraform-mode--string-interpolation-propertize-regexp ()
   "Mark ${...} in strings so interpolation content is parsed as code.
 Marks the enclosing quotes and the interpolation braces with generic-string
 delimiter syntax, splitting the string at each ${...} boundary."
@@ -243,7 +243,7 @@ when any part of it changes."
     (unless (and (= new-start start) (= new-end end))
       (cons new-start new-end))))
 
-(defun terraform-mode--for-expression-text-propertize (start end)
+(defun terraform-mode--for-expression-text-propertize-regexp (start end)
   "Mark for expressions with text properties.
 Clears terraform-mode-for-expression and terraform-mode-for-var in [START, END)
 then rescans from point-min to re-apply across the buffer."
@@ -319,19 +319,19 @@ then rescans from point-min to re-apply across the buffer."
                           (put-text-property (match-beginning 1) (match-end 1)
                                              'terraform-mode-for-var t))))))))))))))
 
-(defun terraform-mode--syntax-propertize (start end)
+(defun terraform-mode--syntax-propertize-regexp (start end)
   "Propertize region from START to END.
 Order of functions is important."
-  (terraform-mode--string-interpolation-propertize)
+  (terraform-mode--string-interpolation-propertize-regexp)
   (terraform-mode--builtins-with-type-propertize-match start end)
-  (terraform-mode--text-propertize-block terraform-mode--terraform-block-propertize 'terraform-mode-terraform-block start end 0)
-  (terraform-mode--text-propertize-block terraform-mode--locals-block-propertize 'terraform-mode-locals-block start end 0)
-  (terraform-mode--text-propertize-block terraform-mode--required-providers-block-propertize 'terraform-mode-required-providers start end 1 'terraform-mode-terraform-block)
-  (terraform-mode--text-propertize-block terraform-mode--variable-block-propertize 'terraform-mode-variable-block start end 0)
-  (terraform-mode--text-propertize-block terraform-mode--resource-block-propertize 'terraform-mode-resource-block start end 0)
-  (terraform-mode--text-propertize-block terraform-mode--module-block-propertize 'terraform-mode-module-block start end 0)
-  (terraform-mode--text-propertize-block terraform-mode--output-block-propertize 'terraform-mode-output-block start end 0)
-  (terraform-mode--for-expression-text-propertize start end))
+  (terraform-mode--text-propertize-block terraform-mode--terraform-block-propertize-regexp 'terraform-mode-terraform-block start end 0)
+  (terraform-mode--text-propertize-block terraform-mode--locals-block-propertize-regexp 'terraform-mode-locals-block start end 0)
+  (terraform-mode--text-propertize-block terraform-mode--required-providers-block-propertize-regexp 'terraform-mode-required-providers start end 1 'terraform-mode-terraform-block)
+  (terraform-mode--text-propertize-block terraform-mode--variable-block-propertize-regexp 'terraform-mode-variable-block start end 0)
+  (terraform-mode--text-propertize-block terraform-mode--resource-block-propertize-regexp 'terraform-mode-resource-block start end 0)
+  (terraform-mode--text-propertize-block terraform-mode--module-block-propertize-regexp 'terraform-mode-module-block start end 0)
+  (terraform-mode--text-propertize-block terraform-mode--output-block-propertize-regexp 'terraform-mode-output-block start end 0)
+  (terraform-mode--for-expression-text-propertize-regexp start end))
 
 ;; Syntax highlighting
 (defun terraform-mode--builtin-at-depth-highlight-match (regexp depth limit)
@@ -348,7 +348,7 @@ Order of functions is important."
         (setq found t)))
     found))
 
-(defconst terraform-mode--block-keywords-highlight
+(defconst terraform-mode--block-keywords-highlight-regexp
   (rx line-start (zero-or-more space)
       (group (or "terraform"
                  "locals"
@@ -357,55 +357,55 @@ Order of functions is important."
 
 (defun terraform-mode--block-keywords-highlight-match (limit)
   "Match block-opening keywords at depth 0 up to LIMIT."
-  (terraform-mode--builtin-at-depth-highlight-match terraform-mode--block-keywords-highlight 0 limit))
+  (terraform-mode--builtin-at-depth-highlight-match terraform-mode--block-keywords-highlight-regexp 0 limit))
 
-(defconst terraform-mode--block-builtins-inside-terraform-highlight
+(defconst terraform-mode--block-builtins-inside-terraform-highlight-regexp
   (rx line-start (zero-or-more space) (group (or "required_providers" "cloud" "workspaces"))))
 
 (defun terraform-mode--inside-terraform-block-highlight-match (limit)
-  (terraform-mode--builtin-with-property-highlight-match terraform-mode--block-builtins-inside-terraform-highlight '(terraform-mode-terraform-block) limit))
+  (terraform-mode--builtin-with-property-highlight-match terraform-mode--block-builtins-inside-terraform-highlight-regexp '(terraform-mode-terraform-block) limit))
 
-(defconst terraform-mode--resource-sub-block-highlight
+(defconst terraform-mode--resource-sub-block-highlight-regexp
   (rx line-start (zero-or-more space) (group (one-or-more word)) (zero-or-more space) "{"))
 
 (defun terraform-mode--resource-sub-block-highlight-match (limit)
   "Match sub-block labels inside resource blocks up to LIMIT."
-  (terraform-mode--builtin-with-property-highlight-match terraform-mode--resource-sub-block-highlight '(terraform-mode-resource-block) limit))
+  (terraform-mode--builtin-with-property-highlight-match terraform-mode--resource-sub-block-highlight-regexp '(terraform-mode-resource-block) limit))
 
-(defconst terraform-mode--lifecycle-highlight
+(defconst terraform-mode--lifecycle-highlight-regexp
   (rx line-start (zero-or-more space) (group "lifecycle")))
 
 (defun terraform-mode--lifecycle-highlight-match (limit)
   "Match lifecycle keyword inside resource blocks up to LIMIT."
-  (terraform-mode--builtin-with-property-highlight-match terraform-mode--lifecycle-highlight '(terraform-mode-resource-block) limit))
+  (terraform-mode--builtin-with-property-highlight-match terraform-mode--lifecycle-highlight-regexp '(terraform-mode-resource-block) limit))
 
-(defconst terraform-mode--resource-builtins-highlight
+(defconst terraform-mode--resource-builtins-highlight-regexp
   (rx line-start (zero-or-more space) (group (or "for_each" "count" "content"))))
 
 (defun terraform-mode--resource-builtins-highlight-match (limit)
   "Match for_each, count, and content builtins inside resource blocks up to LIMIT."
-  (terraform-mode--builtin-with-property-highlight-match terraform-mode--resource-builtins-highlight '(terraform-mode-resource-block) limit))
+  (terraform-mode--builtin-with-property-highlight-match terraform-mode--resource-builtins-highlight-regexp '(terraform-mode-resource-block) limit))
 
 
-(defconst terraform-mode--each-highlight
+(defconst terraform-mode--each-highlight-regexp
   (rx word-start (group "each") (optional "." (group (or "key" "value"))) word-end))
 
 (defun terraform-mode--each-highlight-match (limit)
   "Match each and each.key/each.value inside resource blocks up to LIMIT."
-  (terraform-mode--builtin-with-property-highlight-match terraform-mode--each-highlight '(terraform-mode-resource-block) limit))
+  (terraform-mode--builtin-with-property-highlight-match terraform-mode--each-highlight-regexp '(terraform-mode-resource-block) limit))
 
-(defconst terraform-mode--provider-highlight
+(defconst terraform-mode--provider-highlight-regexp
   (rx line-start (zero-or-more space) (group (one-or-more word)) (one-or-more space) "{"))
 
 (defun terraform-mode--provider-highlight-match (limit)
   "Match provider names inside required_providers blocks up to LIMIT."
-  (terraform-mode--builtin-with-property-highlight-match terraform-mode--provider-highlight '(terraform-mode-required-providers) limit))
+  (terraform-mode--builtin-with-property-highlight-match terraform-mode--provider-highlight-regexp '(terraform-mode-required-providers) limit))
 
-(defconst terraform-mode--assignment-highlight
+(defconst terraform-mode--assignment-highlight-regexp
   (rx (or line-start (any "{,"))
       (zero-or-more space) (group (one-or-more word)) (zero-or-more space) "="))
 
-(defconst terraform-mode--module-builtins-highlight
+(defconst terraform-mode--module-builtins-highlight-regexp
   (rx line-start
       (zero-or-more space)
       (group (or "source" "providers"))
@@ -414,35 +414,35 @@ Order of functions is important."
 
 (defun terraform-mode--module-builtin-highlight-match (limit)
   "Match type keywords inside module blocks up to LIMIT."
-  (terraform-mode--builtin-with-property-highlight-match terraform-mode--module-builtins-highlight '(terraform-mode-module-block) limit))
+  (terraform-mode--builtin-with-property-highlight-match terraform-mode--module-builtins-highlight-regexp '(terraform-mode-module-block) limit))
 
-(defconst terraform-mode--variable-types-highlight
+(defconst terraform-mode--variable-types-highlight-regexp
   (rx word-start
       (group (or "string" "number" "bool" "list" "set" "map" "object" "any"))
       word-end))
 
 (defun terraform-mode--variable-type-highlight-match (limit)
   "Match type keywords inside variable blocks up to LIMIT."
-  (terraform-mode--builtin-with-property-highlight-match terraform-mode--variable-types-highlight '(terraform-mode-variable-block) limit))
+  (terraform-mode--builtin-with-property-highlight-match terraform-mode--variable-types-highlight-regexp '(terraform-mode-variable-block) limit))
 
-(defconst terraform-mode--literal-keywords-highlight
+(defconst terraform-mode--literal-keywords-highlight-regexp
   (rx word-start (group (or "true" "false" "null")) word-end))
 
-(defconst terraform-mode--variable-type-builtins-highlight
+(defconst terraform-mode--variable-type-builtins-highlight-regexp
   (rx word-start (group "optional") word-end))
 
 (defun terraform-mode--variable-type-builtins-highlight-match (limit)
   "Match builtin values inside variable blocks up to LIMIT."
-  (terraform-mode--builtin-with-property-highlight-match terraform-mode--variable-type-builtins-highlight '(terraform-mode-variable-block) limit))
+  (terraform-mode--builtin-with-property-highlight-match terraform-mode--variable-type-builtins-highlight-regexp '(terraform-mode-variable-block) limit))
 
-(defconst terraform-mode--reference-keywords-highlight
+(defconst terraform-mode--reference-keywords-highlight-regexp
   (rx word-start (group (or "var" "local" "module" "data")) word-end))
 
-(defconst terraform-mode--negation-highlight
+(defconst terraform-mode--negation-highlight-regexp
   (rx (group "!") (or (syntax word) "(")))
 
 
-(defconst terraform-mode--builtin-functions-highlight
+(defconst terraform-mode--builtin-functions-highlight-regexp
   (rx word-start
       (group (or "abspath" "alltrue" "anytrue" "base64decode" "base64encode"
                  "base64gzip" "base64sha256" "base64sha512" "basename" "bcrypt"
@@ -478,13 +478,13 @@ Order of functions is important."
     terraform-mode-output-block
     terraform-mode-for-expression))
 
-(defconst terraform-mode--for-expression-keywords-highlight
+(defconst terraform-mode--for-expression-keywords-highlight-regexp
   (rx word-start (group (or "for" "in")) word-end))
 
 (defun terraform-mode--for-expression-keywords-highlight-match (limit)
   "Match for and in keywords inside for expressions up to LIMIT."
   (terraform-mode--builtin-with-property-highlight-match
-   terraform-mode--for-expression-keywords-highlight
+   terraform-mode--for-expression-keywords-highlight-regexp
    '(terraform-mode-for-expression) limit))
 
 (defun terraform-mode--for-var-highlight-match (limit)
@@ -502,19 +502,19 @@ Order of functions is important."
           (goto-char next)))))
     found))
 
-(defconst terraform-mode--block-builtins-with-type-highlight
+(defconst terraform-mode--block-builtins-with-type-highlight-regexp
   (rx line-start (zero-or-more space)
       (group terraform-mode--block-with-type-only)
       (one-or-more space)
       (group "\"" (one-or-more (not (any "\"" space "\n"))) (optional "\""))))
 
-(defconst terraform-mode--block-builtins-with-name-highlight
+(defconst terraform-mode--block-builtins-with-name-highlight-regexp
   (rx line-start (zero-or-more space)
       (group terraform-mode--block-with-name-only)
       (one-or-more space)
       (group "\"" (one-or-more (not (any "\"" space "\n"))) (optional "\""))))
 
-(defconst terraform-mode--block-builtins-with-type-and-name-highlight
+(defconst terraform-mode--block-builtins-with-type-and-name-highlight-regexp
   (rx line-start (zero-or-more space)
       (group terraform-mode--block-with-type-and-name)
       (one-or-more space)
@@ -525,31 +525,31 @@ Order of functions is important."
 (defun terraform-mode--assignment-highlight-match (limit)
   "Match assignment targets inside any block up to LIMIT."
   (terraform-mode--builtin-with-property-highlight-match
-   terraform-mode--assignment-highlight
+   terraform-mode--assignment-highlight-regexp
    terraform-mode--all-block-properties limit))
 
 (defun terraform-mode--literal-keywords-highlight-match (limit)
   "Match true/false/null inside any block up to LIMIT."
   (terraform-mode--builtin-with-property-highlight-match
-   terraform-mode--literal-keywords-highlight
+   terraform-mode--literal-keywords-highlight-regexp
    terraform-mode--all-block-properties limit))
 
 (defun terraform-mode--negation-highlight-match (limit)
   "Match negation operator inside any block up to LIMIT."
   (terraform-mode--builtin-with-property-highlight-match
-   terraform-mode--negation-highlight
+   terraform-mode--negation-highlight-regexp
    terraform-mode--all-block-properties limit))
 
 (defun terraform-mode--builtin-functions-highlight-match (limit)
   "Match builtin function calls inside any block up to LIMIT."
   (terraform-mode--builtin-with-property-highlight-match
-   terraform-mode--builtin-functions-highlight
+   terraform-mode--builtin-functions-highlight-regexp
    terraform-mode--all-block-properties limit))
 
 (defun terraform-mode--reference-keywords-highlight-match (limit)
   "Match reference keywords inside any block up to LIMIT."
   (terraform-mode--builtin-with-property-highlight-match
-   terraform-mode--reference-keywords-highlight
+   terraform-mode--reference-keywords-highlight-regexp
    terraform-mode--all-block-properties limit))
 
 (defconst terraform-mode--font-lock-keywords
@@ -572,13 +572,13 @@ Order of functions is important."
     (terraform-mode--provider-highlight-match 1 font-lock-type-face)
     (terraform-mode--variable-type-highlight-match 1 font-lock-type-face)
     (terraform-mode--variable-type-builtins-highlight-match 1 font-lock-builtin-face)
-    (,terraform-mode--block-builtins-with-type-highlight
+    (,terraform-mode--block-builtins-with-type-highlight-regexp
      (1 font-lock-builtin-face)
      (2 font-lock-type-face))
-    (,terraform-mode--block-builtins-with-name-highlight
+    (,terraform-mode--block-builtins-with-name-highlight-regexp
      (1 font-lock-builtin-face)
      (2 font-lock-variable-name-face))
-    (,terraform-mode--block-builtins-with-type-and-name-highlight
+    (,terraform-mode--block-builtins-with-type-and-name-highlight-regexp
      (1 font-lock-builtin-face)
      (2 font-lock-type-face)
      (3 font-lock-variable-name-face))))
@@ -825,7 +825,7 @@ line, regardless of how many brackets opened on that line."
   (setq-local indent-tabs-mode nil)
   (setq-local indent-line-function #'terraform-mode--indent-line)
   (setq-local font-lock-defaults '(terraform-mode--font-lock-keywords nil nil))
-  (setq-local syntax-propertize-function #'terraform-mode--syntax-propertize)
+  (setq-local syntax-propertize-function #'terraform-mode--syntax-propertize-regexp)
   (add-hook 'syntax-propertize-extend-region-functions
             #'terraform-mode--syntax-propertize-extend-region nil t)
   (setq-local imenu-create-index-function #'terraform-mode--imenu-index)
