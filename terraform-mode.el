@@ -467,7 +467,7 @@ Order of functions is important."
   (terraform-mode--builtin-with-property-highlight-match terraform-mode--provisioner-highlight-regexp '(terraform-mode-resource-block) limit))
 
 (defconst terraform-mode--resource-builtins-highlight-regexp
-  (rx line-start (zero-or-more space) (group (or "for_each" "count" "content"))))
+  (rx line-start (zero-or-more space) (group (or "for_each" "count" "content" "depends_on"))))
 
 (defun terraform-mode--resource-builtins-highlight-match (limit)
   "Match for_each, count, and content builtins inside resource blocks up to LIMIT."
