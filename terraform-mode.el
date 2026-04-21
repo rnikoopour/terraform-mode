@@ -542,7 +542,7 @@ Order of functions is important."
   (terraform-mode--builtin-with-property-highlight-match terraform-mode--variable-type-builtins-highlight-regexp '(terraform-mode-variable-block) limit))
 
 (defconst terraform-mode--reference-keywords-highlight-regexp
-  (rx word-start (group (or "var" "local" "module" "data" "self")) word-end))
+  (rx word-start (group (or "var" "local" "module" "data" "self" "ephemeral")) word-end))
 
 (defconst terraform-mode--negation-highlight-regexp
   (rx (group "!") (or (syntax word) "(")))
