@@ -466,6 +466,13 @@ Order of functions is important."
   "Match connection keyword inside resource blocks up to LIMIT."
   (terraform-mode--builtin-with-property-highlight-match terraform-mode--connection-highlight-regexp '(terraform-mode-resource-block) limit))
 
+(defconst terraform-mode--validation-highlight-regexp
+  (rx line-start (zero-or-more space) (group "validation")))
+
+(defun terraform-mode--validation-highlight-match (limit)
+  "Match validation keyword inside variable blocks up to LIMIT."
+  (terraform-mode--builtin-with-property-highlight-match terraform-mode--validation-highlight-regexp '(terraform-mode-variable-block) limit))
+
 (defconst terraform-mode--provisioner-highlight-regexp
   (rx line-start (zero-or-more space) (group "provisioner") word-end))
 
@@ -664,6 +671,7 @@ Order of functions is important."
      (1 font-lock-builtin-face)
      (2 font-lock-builtin-face nil t))
     (terraform-mode--provider-highlight-match 1 font-lock-type-face)
+    (terraform-mode--validation-highlight-match 1 font-lock-builtin-face)
     (terraform-mode--variable-type-highlight-match 1 font-lock-type-face)
     (terraform-mode--variable-type-builtins-highlight-match 1 font-lock-builtin-face)
     (,terraform-mode--block-builtins-with-type-highlight-regexp
