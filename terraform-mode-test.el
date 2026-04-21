@@ -798,5 +798,13 @@ LINE is 1-based.  DESCRIPTION is used in failure messages."
             (should (string-match-p (alist-get 'expected-error case) (cadr err))))
         (should (progn (terraform-mode-insert-doc-comment) t))))))
 
+(ert-deftest test-terraform-mode--insert-doc-comment-point-on-resource-line ()
+  "Point stays on the resource line after inserting a doc comment from the header."
+  (terraform-test-with-buffer
+      "terraform {\n  required_providers {\n    aws = {\n      source = \"hashicorp/aws\"\n    }\n  }\n}\nresource \"aws_s3_bucket\" \"b\" {\n  bucket = \"x\"\n}\n"
+    (goto-char 91)
+    (terraform-mode-insert-doc-comment)
+    (should (looking-at-p (rx line-start "resource")))))
+
 (provide 'terraform-mode-test)
 ;;; terraform-mode-test.el ends here

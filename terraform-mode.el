@@ -809,11 +809,17 @@ Only works inside resource, data, or ephemeral blocks."
                 (looking-at-p (rx line-start (zero-or-more space)
                                   terraform-mode--block-with-type-and-name))))
     (user-error "Not inside a resource, data, or ephemeral block"))
-  (let ((url (terraform-mode--doc-url-at-point)))
+  (let ((url (terraform-mode--doc-url-at-point))
+        (on-header (save-excursion
+                     (goto-char (line-beginning-position))
+                     (looking-at-p (rx line-start (zero-or-more space)
+                                       terraform-mode--block-with-type-and-name)))))
     (save-excursion
       (unless (looking-at-p (rx line-start terraform-mode--block-with-type-and-name))
         (re-search-backward (rx line-start terraform-mode--block-with-type-and-name) nil t))
-      (insert (format "# %s\n" url)))))
+      (insert (format "# %s\n" url)))
+    (when on-header
+      (forward-line 1))))
 
 ;; Formatting
 
