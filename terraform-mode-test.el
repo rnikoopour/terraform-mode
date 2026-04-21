@@ -710,5 +710,51 @@ CHECKS is a list of alists, each with pos and face keys."
                                   (alist-get 'content case)
                                   (alist-get 'checks case))))
 
+(defun terraform-test-indent (description content line expected-indent)
+  "Assert that LINE in CONTENT indents to EXPECTED-INDENT.
+LINE is 1-based.  DESCRIPTION is used in failure messages."
+  (with-temp-buffer
+    (terraform-mode)
+    (insert content)
+    (goto-char (point-min))
+    (forward-line (1- line))
+    (terraform-mode--indent-line)
+    (let ((actual (current-indentation)))
+      (unless (= actual expected-indent)
+        (ert-fail (format "%s: line %d expected indent %d, got %d"
+                          description line expected-indent actual))))))
+
+;;; Indentation
+
+(ert-deftest test-terraform-mode--indent ()
+  (dolist (case '(((description . "top-level resource line indents to 0")
+                   (content     . "resource \"aws_instance\" \"web\" {\n  ami = \"abc\"\n}\n")
+                   (line        . 1)
+                   (indent      . 0))
+                  ((description . "content inside block indents to 2")
+                   (content     . "resource \"aws_instance\" \"web\" {\n  ami = \"abc\"\n}\n")
+                   (line        . 2)
+                   (indent      . 2))
+                  ((description . "closing brace indents to 0")
+                   (content     . "resource \"aws_instance\" \"web\" {\n  ami = \"abc\"\n}\n")
+                   (line        . 3)
+                   (indent      . 0))
+                  ((description . "second assignment line does not accumulate extra indent")
+                   (content     . "resource \"aws_instance\" \"web\" {\n  ami = \"abc\"\n  instance_type = \"t3.micro\"\n}\n")
+                   (line        . 3)
+                   (indent      . 2))
+                  ((description . "nested block closing brace indents to 2")
+                   (content     . "resource \"aws_instance\" \"web\" {\n  provisioner \"local-exec\" {\n    command = \"echo hi\"\n  }\n}\n")
+                   (line        . 4)
+                   (indent      . 2))
+                  ((description . "content inside nested block indents to 4")
+                   (content     . "resource \"aws_instance\" \"web\" {\n  provisioner \"local-exec\" {\n    command = \"echo hi\"\n  }\n}\n")
+                   (line        . 3)
+                   (indent      . 4))))
+    (terraform-test-indent (alist-get 'description case)
+                           (alist-get 'content case)
+                           (alist-get 'line case)
+                           (alist-get 'indent case))))
+
 (provide 'terraform-mode-test)
 ;;; terraform-mode-test.el ends here
