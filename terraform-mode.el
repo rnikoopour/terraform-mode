@@ -52,7 +52,7 @@
   "Syntax table for `terraform-mode'.")
 
 ;; Keyword groups shared across propertizing and highlighting
-(rx-define terraform-mode--block-with-type-only   (or "backend" "provider_meta" "resource" "data" "provider"))
+(rx-define terraform-mode--block-with-type-only   (or "backend" "provider_meta" "resource" "data" "provider" "provisioner"))
 (rx-define terraform-mode--block-with-name-only   (or "variable" "module" "output" "dynamic"))
 (rx-define terraform-mode--block-with-type-and-name (or "resource" "data"))
 
@@ -642,7 +642,6 @@ Order of functions is important."
     (terraform-mode--literal-keywords-highlight-match 1 font-lock-constant-face)
     (terraform-mode--negation-highlight-match 1 font-lock-builtin-face)
     (terraform-mode--builtin-functions-highlight-match 1 font-lock-builtin-face)
-    (terraform-mode--reference-keywords-highlight-match 1 font-lock-builtin-face)
     (terraform-mode--lifecycle-highlight-match 1 font-lock-builtin-face)
     (terraform-mode--resource-sub-block-highlight-match 1 font-lock-variable-name-face)
     (terraform-mode--each-highlight-match
@@ -660,7 +659,8 @@ Order of functions is important."
     (,terraform-mode--block-builtins-with-type-and-name-highlight-regexp
      (1 font-lock-builtin-face)
      (2 font-lock-type-face)
-     (3 font-lock-variable-name-face))))
+     (3 font-lock-variable-name-face))
+    (terraform-mode--reference-keywords-highlight-match 1 font-lock-builtin-face)))
 
 
 ;; Development utilities
