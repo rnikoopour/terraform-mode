@@ -459,6 +459,13 @@ Order of functions is important."
   "Match lifecycle keyword inside resource blocks up to LIMIT."
   (terraform-mode--builtin-with-property-highlight-match terraform-mode--lifecycle-highlight-regexp '(terraform-mode-resource-block) limit))
 
+(defconst terraform-mode--connection-highlight-regexp
+  (rx line-start (zero-or-more space) (group "connection")))
+
+(defun terraform-mode--connection-highlight-match (limit)
+  "Match connection keyword inside resource blocks up to LIMIT."
+  (terraform-mode--builtin-with-property-highlight-match terraform-mode--connection-highlight-regexp '(terraform-mode-resource-block) limit))
+
 (defconst terraform-mode--provisioner-highlight-regexp
   (rx line-start (zero-or-more space) (group "provisioner") word-end))
 
@@ -650,6 +657,7 @@ Order of functions is important."
     (terraform-mode--negation-highlight-match 1 font-lock-builtin-face)
     (terraform-mode--builtin-functions-highlight-match 1 font-lock-builtin-face)
     (terraform-mode--lifecycle-highlight-match 1 font-lock-builtin-face)
+    (terraform-mode--connection-highlight-match 1 font-lock-builtin-face)
     (terraform-mode--provisioner-highlight-match 1 font-lock-builtin-face)
     (terraform-mode--resource-sub-block-highlight-match 1 font-lock-variable-name-face)
     (terraform-mode--each-highlight-match
