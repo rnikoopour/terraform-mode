@@ -52,9 +52,15 @@
   "Syntax table for `terraform-mode'.")
 
 ;; Keyword groups shared across propertizing and highlighting
+(defconst terraform-mode--type-and-name-keywords '("resource" "data" "ephemeral"))
+(defconst terraform-mode--top-level-keywords
+  '("resource" "data" "ephemeral" "module" "variable" "output"
+    "terraform" "provider" "locals"))
+
 (rx-define terraform-mode--block-with-type-only   (or "backend" "provider_meta" "resource" "data" "provider" "provisioner"))
 (rx-define terraform-mode--block-with-name-only   (or "variable" "module" "output" "dynamic"))
-(rx-define terraform-mode--block-with-type-and-name (or "resource" "data"))
+(eval `(rx-define terraform-mode--block-with-type-and-name (or ,@terraform-mode--type-and-name-keywords)))
+(eval `(rx-define terraform-mode--top-level-keyword (or ,@terraform-mode--top-level-keywords)))
 
 ;; Text Propertizing
 (defun terraform-mode--text-propertize-block (regexp property start end depth &optional required-property)
@@ -158,7 +164,7 @@ suppress `font-lock-string-face' on their contents."
   (while (re-search-forward terraform-mode--label-bearing-keywords-propertize-regexp end t)
     (let ((keyword (match-string 1)))
       (when (terraform-mode--propertize-next-label)
-        (when (member keyword '("resource" "data"))
+        (when (member keyword terraform-mode--type-and-name-keywords)
           (when (looking-at (rx (one-or-more space)))
             (goto-char (match-end 0))
             (terraform-mode--propertize-next-label)))))))
@@ -295,9 +301,7 @@ when any part of it changes."
     (save-excursion
       (goto-char start)
       (when (re-search-backward
-             (rx line-start (or "resource" "data" "module" "variable" "output"
-                                "terraform" "provider" "locals")
-             word-end) nil t)
+             (rx line-start terraform-mode--top-level-keyword word-end) nil t)
         (setq new-start (min new-start (line-beginning-position))))
       (goto-char end)
       (when (re-search-forward (rx line-start "}") nil t)
@@ -775,8 +779,8 @@ Returns an empty string if not found."
   "Return the registry documentation URL for the resource or data block at point."
   (save-excursion
     (goto-char (line-beginning-position))
-    (unless (looking-at-p (rx line-start (or "resource" "data")))
-      (re-search-backward (rx line-start (or "resource" "data")) nil t))
+    (unless (looking-at-p (rx line-start terraform-mode--block-with-type-and-name))
+      (re-search-backward (rx line-start terraform-mode--block-with-type-and-name) nil t))
     (let ((doc-dir (if (equal (word-at-point) "data") "data-sources" "resources")))
       (forward-symbol 2)
       (terraform-mode--resource-doc-url (thing-at-point 'symbol) doc-dir))))
@@ -798,8 +802,8 @@ Returns an empty string if not found."
   (interactive)
   (let ((url (terraform-mode--doc-url-at-point)))
     (save-excursion
-      (unless (looking-at-p (rx line-start (or "resource" "data")))
-        (re-search-backward (rx line-start (or "resource" "data")) nil t))
+      (unless (looking-at-p (rx line-start terraform-mode--block-with-type-and-name))
+        (re-search-backward (rx line-start terraform-mode--block-with-type-and-name) nil t))
       (insert (format "# %s\n" url)))))
 
 ;; Formatting
@@ -833,7 +837,7 @@ Returns an empty string if not found."
         (goto-char (point-min))
         (while (re-search-forward
                 (rx line-start (zero-or-more space)
-                    (group (or "resource" "data")) (one-or-more space)
+                    (group terraform-mode--block-with-type-and-name) (one-or-more space)
                     "\"" (group (one-or-more (not (any "\"")))) "\""
                     (one-or-more space)
                     "\"" (group (one-or-more (not (any "\"")))) "\"")
