@@ -806,5 +806,18 @@ LINE is 1-based.  DESCRIPTION is used in failure messages."
     (terraform-mode-insert-doc-comment)
     (should (looking-at-p (rx line-start "resource")))))
 
+(ert-deftest test-terraform-mode--insert-doc-comment-idempotent ()
+  "insert-doc-comment does not insert a duplicate comment if it already exists."
+  (terraform-test-with-buffer
+      "terraform {\n  required_providers {\n    aws = {\n      source = \"hashicorp/aws\"\n    }\n  }\n}\nresource \"aws_s3_bucket\" \"b\" {\n  bucket = \"x\"\n}\n"
+    (goto-char 91)
+    (terraform-mode-insert-doc-comment)
+    (let ((content-after-first (buffer-string)))
+      (goto-char (point-min))
+      (re-search-forward (rx line-start "resource"))
+      (goto-char (line-beginning-position))
+      (terraform-mode-insert-doc-comment)
+      (should (equal (buffer-string) content-after-first)))))
+
 (provide 'terraform-mode-test)
 ;;; terraform-mode-test.el ends here

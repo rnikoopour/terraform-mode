@@ -817,7 +817,12 @@ Only works inside resource, data, or ephemeral blocks."
     (save-excursion
       (unless (looking-at-p (rx line-start terraform-mode--block-with-type-and-name))
         (re-search-backward (rx line-start terraform-mode--block-with-type-and-name) nil t))
-      (insert (format "# %s\n" url)))
+      (let ((comment (format "# %s\n" url)))
+        (unless (and (not (bobp))
+                     (save-excursion
+                       (forward-line -1)
+                       (looking-at-p (regexp-quote comment))))
+          (insert comment))))
     (when on-header
       (forward-line 1))))
 
