@@ -29,6 +29,8 @@
 
 ;;; Code:
 
+(require 'thingatpt)
+
 ;; Syntax Table
 (defvar terraform-mode-syntax-table
   (let ((table (make-syntax-table)))
@@ -798,8 +800,15 @@ Returns an empty string if not found."
     (message "Copied URL: %s" url)))
 
 (defun terraform-mode-insert-doc-comment ()
-  "Insert a comment with the Terraform registry URL above the resource block at point."
+  "Insert a comment with the Terraform registry URL above the resource block at point.
+Only works inside resource, data, or ephemeral blocks."
   (interactive)
+  (unless (or (get-text-property (point) 'terraform-mode-resource-block)
+              (save-excursion
+                (goto-char (line-beginning-position))
+                (looking-at-p (rx line-start (zero-or-more space)
+                                  terraform-mode--block-with-type-and-name))))
+    (user-error "Not inside a resource, data, or ephemeral block"))
   (let ((url (terraform-mode--doc-url-at-point)))
     (save-excursion
       (unless (looking-at-p (rx line-start terraform-mode--block-with-type-and-name))

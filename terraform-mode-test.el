@@ -771,5 +771,32 @@ LINE is 1-based.  DESCRIPTION is used in failure messages."
                            (alist-get 'line case)
                            (alist-get 'indent case))))
 
+;;; insert-doc-comment scoping
+
+(ert-deftest test-terraform-mode--insert-doc-comment-scoping ()
+  "insert-doc-comment enforces block scoping."
+  (dolist (case '(((description . "errors with guard message inside variable block")
+                   (content     . "variable \"foo\" {\n  default = 1\n}\n")
+                   (pos         . 20)
+                   (expected-error . "Not inside"))
+                  ((description . "errors on provider resolution inside resource block without provider declaration")
+                   (content     . "resource \"aws_s3_bucket\" \"b\" {\n  bucket = \"x\"\n}\n")
+                   (pos         . 35)
+                   (expected-error . "Cannot determine"))
+                  ((description . "succeeds inside resource block with provider declaration")
+                   (content     . "terraform {\n  required_providers {\n    aws = {\n      source = \"hashicorp/aws\"\n    }\n  }\n}\nresource \"aws_s3_bucket\" \"b\" {\n  bucket = \"x\"\n}\n")
+                   (pos         . 125)
+                   (expected-error . nil))
+                  ((description . "succeeds on the resource header line itself")
+                   (content     . "terraform {\n  required_providers {\n    aws = {\n      source = \"hashicorp/aws\"\n    }\n  }\n}\nresource \"aws_s3_bucket\" \"b\" {\n  bucket = \"x\"\n}\n")
+                   (pos         . 91)
+                   (expected-error . nil))))
+    (terraform-test-with-buffer (alist-get 'content case)
+      (goto-char (alist-get 'pos case))
+      (if (alist-get 'expected-error case)
+          (let ((err (should-error (terraform-mode-insert-doc-comment) :type 'user-error)))
+            (should (string-match-p (alist-get 'expected-error case) (cadr err))))
+        (should (progn (terraform-mode-insert-doc-comment) t))))))
+
 (provide 'terraform-mode-test)
 ;;; terraform-mode-test.el ends here
