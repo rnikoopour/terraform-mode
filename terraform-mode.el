@@ -135,6 +135,11 @@ at the match."
       "\"" (one-or-more (not (any "\""))) "\""
       (zero-or-more space) "{"))
 
+(defconst terraform-mode--provider-block-propertize-regexp
+  (rx line-start (zero-or-more space) "provider" (one-or-more space)
+      "\"" (one-or-more (not (any "\""))) "\""
+      (zero-or-more space) "{"))
+
 (defconst terraform-mode--label-bearing-keywords-propertize-regexp
   (rx line-start (zero-or-more space)
       (group (or terraform-mode--block-with-type-only terraform-mode--block-with-name-only))
@@ -418,6 +423,7 @@ Order of functions is important."
   (terraform-mode--text-propertize-block terraform-mode--resource-block-propertize-regexp 'terraform-mode-resource-block start end 0)
   (terraform-mode--text-propertize-block terraform-mode--module-block-propertize-regexp 'terraform-mode-module-block start end 0)
   (terraform-mode--text-propertize-block terraform-mode--output-block-propertize-regexp 'terraform-mode-output-block start end 0)
+  (terraform-mode--text-propertize-block terraform-mode--provider-block-propertize-regexp 'terraform-mode-provider-block start end 0)
   (terraform-mode--for-expression-text-propertize-regexp start end))
 
 ;; Syntax highlighting
@@ -582,6 +588,7 @@ Order of functions is important."
     terraform-mode-resource-block
     terraform-mode-module-block
     terraform-mode-output-block
+    terraform-mode-provider-block
     terraform-mode-for-expression))
 
 (defconst terraform-mode--for-expression-keywords-highlight-regexp
