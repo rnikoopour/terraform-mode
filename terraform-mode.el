@@ -871,20 +871,22 @@ line, regardless of how many brackets opened on that line."
             ;; Regular line: previous non-blank line's indent, plus one
             ;; tab-width if that line increased nesting depth at all
             (t
-             (forward-line -1)
-             (while (and (not (bobp))
-                         (looking-at (rx line-start (zero-or-more space) line-end)))
-               (forward-line -1))
-             (if (looking-at (rx line-start (zero-or-more space) line-end))
-                 0
+             (let ((current-line-start (line-beginning-position)))
+               (forward-line -1)
+               (while (and (not (bobp))
+                           (looking-at (rx line-start (zero-or-more space) line-end)))
+                 (forward-line -1))
+               (if (or (= (line-beginning-position) current-line-start)
+                       (looking-at (rx line-start (zero-or-more space) line-end)))
+                   0
                (let* ((bol (line-beginning-position))
                       (eol (line-end-position))
                       (prev-indent (current-indentation))
-                      (depth-delta (- (nth 0 (syntax-ppss eol))
-                                      (nth 0 (syntax-ppss bol)))))
+                      (bol-depth (nth 0 (syntax-ppss bol)))
+                      (depth-delta (- (nth 0 (syntax-ppss eol)) bol-depth)))
                  (if (> depth-delta 0)
                      (+ prev-indent tab-width)
-                   prev-indent))))))))
+                   prev-indent)))))))))
     (save-excursion (indent-line-to indent))
     (when (< (current-column) (current-indentation))
       (back-to-indentation))))
