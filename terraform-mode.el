@@ -790,7 +790,7 @@ Returns an empty string if not found."
   (interactive)
   (browse-url (terraform-mode--doc-url-at-point)))
 
-(defun terraform-mode-kill-doc-url ()
+(defun terraform-mode-copy-doc-url ()
   "Copy the Terraform registry URL for the resource at point to the kill ring."
   (interactive)
   (let ((url (substring-no-properties (terraform-mode--doc-url-at-point))))
@@ -943,9 +943,9 @@ line, regardless of how many brackets opened on that line."
     (add-hook 'before-save-hook #'terraform-mode-format-buffer nil t)))
 
 (define-key terraform-mode-map (kbd "<backtab>") #'terraform-mode--unindent)
-(define-key terraform-mode-map (kbd "C-c C-t C-w") #'terraform-mode-open-doc)
-(define-key terraform-mode-map (kbd "C-c C-t C-c") #'terraform-mode-kill-doc-url)
-(define-key terraform-mode-map (kbd "C-c C-t C-r") #'terraform-mode-insert-doc-comment)
+(define-key terraform-mode-map (kbd "C-c C-t C-o") #'terraform-mode-open-doc)
+(define-key terraform-mode-map (kbd "C-c C-t C-c") #'terraform-mode-copy-doc-url)
+(define-key terraform-mode-map (kbd "C-c C-t C-i") #'terraform-mode-insert-doc-comment)
 
 ;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.tf\\'" . terraform-mode))
