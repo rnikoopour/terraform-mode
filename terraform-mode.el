@@ -57,6 +57,7 @@
   '("resource" "data" "ephemeral" "module" "variable" "output"
     "terraform" "provider" "locals"))
 
+(rx-define terraform-mode--block-with-no-label    (or "terraform" "locals"))
 (rx-define terraform-mode--block-with-type-only   (or "backend" "provider_meta" "resource" "data" "provider" "provisioner"))
 (rx-define terraform-mode--block-with-name-only   (or "variable" "module" "output" "dynamic"))
 (eval `(rx-define terraform-mode--block-with-type-and-name (or ,@terraform-mode--type-and-name-keywords)))
@@ -434,8 +435,7 @@ Order of functions is important."
 
 (defconst terraform-mode--block-keywords-highlight-regexp
   (rx line-start (zero-or-more space)
-      (group (or "terraform"
-                 "locals"
+      (group (or terraform-mode--block-with-no-label
                  terraform-mode--block-with-type-only
                  terraform-mode--block-with-name-only))))
 
