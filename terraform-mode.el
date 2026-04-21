@@ -771,11 +771,9 @@ Returns an empty string if not found."
          (source (terraform-mode--provider-source provider)))
     (when (string-empty-p source)
       (let ((ns (terraform-mode--provider-namespace-from-cli provider)))
-        (setq source (if ns (concat ns "/" provider) ""))))
-    (if (not (string-empty-p source))
-        (format "https://registry.terraform.io/providers/%s/latest/docs/%s/%s"
-                source doc-dir resource-name)
-      (user-error "Cannot determine provider source for %s" provider))))
+        (setq source (concat (or ns "hashicorp") "/" provider))))
+    (format "https://registry.terraform.io/providers/%s/latest/docs/%s/%s"
+            source doc-dir resource-name)))
 
 (defun terraform-mode--doc-url-at-point ()
   "Return the registry documentation URL for the resource or data block at point."

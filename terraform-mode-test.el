@@ -779,10 +779,10 @@ LINE is 1-based.  DESCRIPTION is used in failure messages."
                    (content     . "variable \"foo\" {\n  default = 1\n}\n")
                    (pos         . 20)
                    (expected-error . "Not inside"))
-                  ((description . "errors on provider resolution inside resource block without provider declaration")
+                  ((description . "succeeds inside resource block, defaults to hashicorp when provider not declared")
                    (content     . "resource \"aws_s3_bucket\" \"b\" {\n  bucket = \"x\"\n}\n")
                    (pos         . 35)
-                   (expected-error . "Cannot determine"))
+                   (expected-error . nil))
                   ((description . "succeeds inside resource block with provider declaration")
                    (content     . "terraform {\n  required_providers {\n    aws = {\n      source = \"hashicorp/aws\"\n    }\n  }\n}\nresource \"aws_s3_bucket\" \"b\" {\n  bucket = \"x\"\n}\n")
                    (pos         . 125)
@@ -822,6 +822,23 @@ LINE is 1-based.  DESCRIPTION is used in failure messages."
                 (save-excursion
                   (goto-char (point-max))
                   (re-search-backward "already" nil t)))))))
+
+(ert-deftest test-terraform-mode--doc-url-provider-source ()
+  "terraform-mode--resource-doc-url uses declared source over hashicorp default."
+  (dolist (case '(((description . "uses declared okta/okta source")
+                   (content     . "terraform {\n  required_providers {\n    okta = {\n      source = \"okta/okta\"\n    }\n  }\n}\nresource \"okta_app_oauth\" \"b\" {\n  label = \"x\"\n}\n")
+                   (expected    . "okta/okta"))
+                  ((description . "defaults to hashicorp when no source declared")
+                   (content     . "resource \"aws_s3_bucket\" \"b\" {\n  bucket = \"x\"\n}\n")
+                   (expected    . "hashicorp/aws"))))
+    (with-temp-buffer
+      (insert (alist-get 'content case))
+      (should (string-match-p (alist-get 'expected case)
+                              (terraform-mode--resource-doc-url
+                               (if (string-match-p "okta" (alist-get 'content case))
+                                   "okta_app_oauth"
+                                 "aws_s3_bucket")
+                               "resources"))))))
 
 (provide 'terraform-mode-test)
 ;;; terraform-mode-test.el ends here
