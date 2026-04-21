@@ -776,7 +776,14 @@ Returns an empty string if not found."
             source doc-dir resource-name)))
 
 (defun terraform-mode--doc-url-at-point ()
-  "Return the registry documentation URL for the resource or data block at point."
+  "Return the registry documentation URL for the resource or data block at point.
+Signals a user-error if point is not inside or on a resource, data, or ephemeral block."
+  (unless (or (get-text-property (point) 'terraform-mode-resource-block)
+              (save-excursion
+                (goto-char (line-beginning-position))
+                (looking-at-p (rx line-start (zero-or-more space)
+                                  terraform-mode--block-with-type-and-name))))
+    (user-error "Not inside a resource, data, or ephemeral block"))
   (save-excursion
     (goto-char (line-beginning-position))
     (unless (looking-at-p (rx line-start terraform-mode--block-with-type-and-name))
@@ -801,12 +808,6 @@ Returns an empty string if not found."
   "Insert a comment with the Terraform registry URL above the resource block at point.
 Only works inside resource, data, or ephemeral blocks."
   (interactive)
-  (unless (or (get-text-property (point) 'terraform-mode-resource-block)
-              (save-excursion
-                (goto-char (line-beginning-position))
-                (looking-at-p (rx line-start (zero-or-more space)
-                                  terraform-mode--block-with-type-and-name))))
-    (user-error "Not inside a resource, data, or ephemeral block"))
   (let ((url (terraform-mode--doc-url-at-point))
         (on-header (save-excursion
                      (goto-char (line-beginning-position))
