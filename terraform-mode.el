@@ -818,10 +818,11 @@ Only works inside resource, data, or ephemeral blocks."
       (unless (looking-at-p (rx line-start terraform-mode--block-with-type-and-name))
         (re-search-backward (rx line-start terraform-mode--block-with-type-and-name) nil t))
       (let ((comment (format "# %s\n" url)))
-        (unless (and (not (bobp))
-                     (save-excursion
-                       (forward-line -1)
-                       (looking-at-p (regexp-quote comment))))
+        (if (and (not (bobp))
+                 (save-excursion
+                   (forward-line -1)
+                   (looking-at-p (regexp-quote comment))))
+            (message "Last line of comment is already documentation URL")
           (insert comment))))
     (when on-header
       (forward-line 1))))

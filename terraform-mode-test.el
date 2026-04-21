@@ -817,7 +817,11 @@ LINE is 1-based.  DESCRIPTION is used in failure messages."
       (re-search-forward (rx line-start "resource"))
       (goto-char (line-beginning-position))
       (terraform-mode-insert-doc-comment)
-      (should (equal (buffer-string) content-after-first)))))
+      (should (equal (buffer-string) content-after-first))
+      (should (with-current-buffer (messages-buffer)
+                (save-excursion
+                  (goto-char (point-max))
+                  (re-search-backward "already" nil t)))))))
 
 (provide 'terraform-mode-test)
 ;;; terraform-mode-test.el ends here
