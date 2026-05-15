@@ -392,7 +392,10 @@ then rescans from point-min to re-apply across the buffer."
                           expr-end t)
                     (when (member (match-string 1) var-names)
                       (put-text-property (match-beginning 1) (match-end 1)
-                                         'terraform-mode-for-var t))))))
+                                         'terraform-mode-for-var t)))))
+              ;; Reset point to just inside expr-start so the outer while loop's
+              ;; next re-search-forward finds nested for expressions within this one.
+              (goto-char (1+ expr-start)))
              ;; Incomplete expression (no "in" yet or no closing bracket):
              ;; mark what we can so highlights appear while the user is typing.
              ((< expr-start end)
