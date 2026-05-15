@@ -515,7 +515,9 @@ Order of functions is important."
 
 (defconst terraform-mode--assignment-highlight-regexp
   (rx (or line-start (any "{,"))
-      (zero-or-more space) (group (one-or-more word)) (zero-or-more space) "="))
+      (zero-or-more space)
+      (group (one-or-more word) (zero-or-more (seq "-" (one-or-more word))))
+      (zero-or-more space) "="))
 
 (defconst terraform-mode--module-builtins-highlight-regexp
   (rx line-start
