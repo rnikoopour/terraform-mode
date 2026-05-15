@@ -390,7 +390,8 @@ then rescans from point-min to re-apply across the buffer."
                   (while (re-search-forward
                           (rx word-start (group (one-or-more word)) word-end)
                           expr-end t)
-                    (when (member (match-string 1) var-names)
+                    (when (and (member (match-string 1) var-names)
+                               (not (eq (char-before (match-beginning 1)) ?.)))
                       (put-text-property (match-beginning 1) (match-end 1)
                                          'terraform-mode-for-var t)))))
               ;; Reset point to just inside expr-start so the outer while loop's
@@ -410,7 +411,8 @@ then rescans from point-min to re-apply across the buffer."
                   (while (re-search-forward
                           (rx word-start (group (one-or-more word)) word-end)
                           end t)
-                    (when (member (match-string 1) var-names)
+                    (when (and (member (match-string 1) var-names)
+                               (not (eq (char-before (match-beginning 1)) ?.)))
                       (put-text-property (match-beginning 1) (match-end 1)
                                          'terraform-mode-for-var t)))))))))))))
 
