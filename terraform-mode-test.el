@@ -44,11 +44,13 @@ CHECKS is a list of alists, each with pos, property, and value keys."
                             description property expected pos
                             (get-text-property pos property))))))))
 
-(defun terraform-test-face (description content checks)
+(defun terraform-test-face (description content checks &optional file-name)
   "Assert face properties in a terraform-mode buffer with CONTENT.
 DESCRIPTION is used in failure messages.
-CHECKS is a list of alists, each with pos and face keys."
+CHECKS is a list of alists, each with pos and face keys.
+FILE-NAME, if non-nil, is set as buffer-file-name before activating the mode."
   (with-temp-buffer
+    (when file-name (setq buffer-file-name file-name))
     (terraform-mode)
     (insert content)
     (font-lock-ensure)
@@ -69,6 +71,19 @@ CHECKS is a list of alists, each with pos and face keys."
 (ert-deftest terraform-mode-auto-mode-tfvars ()
   "terraform-mode activates for .tfvars files."
   (should (equal (cdr (assoc "\\.tfvars\\'" auto-mode-alist)) 'terraform-mode)))
+
+(ert-deftest test-terraform-mode--tfvars-assignment ()
+  (dolist (case '(((description . "top-level assignment key in tfvars gets variable-name face")
+                   (file        . "/tmp/test.tfvars")
+                   (content     . "aws_region = \"us-east-1\"")
+                   (check       . (((pos . 1) (face . font-lock-variable-name-face)))))
+                  ((description . "top-level assignment key without tfvars file gets no face")
+                   (content     . "aws_region = \"us-east-1\"")
+                   (check       . (((pos . 1) (face . nil)))))))
+    (terraform-test-face (alist-get 'description case)
+                         (alist-get 'content case)
+                         (alist-get 'check case)
+                         (alist-get 'file case))))
 
 (ert-deftest terraform-mode-auto-mode-tofu ()
   "terraform-mode activates for .tofu files."

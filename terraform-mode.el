@@ -416,9 +416,15 @@ then rescans from point-min to re-apply across the buffer."
                       (put-text-property (match-beginning 1) (match-end 1)
                                          'terraform-mode-for-var t)))))))))))))
 
+(defun terraform-mode--text-propertize-tfvars-file ()
+  "Mark the entire buffer with terraform-mode-tfvars-file when visiting a .tfvars file."
+  (when (string-match-p "\\.tfvars\\'" (or buffer-file-name ""))
+    (put-text-property (point-min) (point-max) 'terraform-mode-tfvars-file t)))
+
 (defun terraform-mode--syntax-propertize-regexp (start end)
   "Propertize region from START to END.
 Order of functions is important."
+  (terraform-mode--text-propertize-tfvars-file)
   (terraform-mode--propertize-string-literals)
   (terraform-mode--builtins-with-type-propertize-match start end)
   (terraform-mode--text-propertize-block terraform-mode--terraform-block-propertize-regexp 'terraform-mode-terraform-block start end 0)
@@ -596,7 +602,8 @@ Order of functions is important."
     terraform-mode-module-block
     terraform-mode-output-block
     terraform-mode-provider-block
-    terraform-mode-for-expression))
+    terraform-mode-for-expression
+    terraform-mode-tfvars-file))
 
 (defconst terraform-mode--for-expression-keywords-highlight-regexp
   (rx word-start (group (or "for" "in")) word-end))
