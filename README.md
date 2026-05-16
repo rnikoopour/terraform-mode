@@ -73,11 +73,13 @@ With `hs-minor-mode` active, use standard hideshow bindings to fold and unfold b
 
 `terraform-mode-format-buffer` and `terraform-mode-format-region` rewrite the buffer or region using `terraform fmt`. Point is preserved across format operations.
 
-To format automatically on save:
+To format automatically on save, set this before `terraform-mode` activates (e.g. in your init file):
 
 ```emacs-lisp
 (setq terraform-mode-format-on-save t)
 ```
+
+The save hook is installed at mode activation time, so setting this variable after the mode is already running has no effect until `terraform-mode` is reinvoked in that buffer. This is intentional — the mode will never add a hook to `before-save-hook` without the user having explicitly opted in before activation.
 
 ## Terraform Registry Documentation
 
