@@ -27,11 +27,9 @@ This is a from-scratch rewrite that removes the dependency on `hcl-mode` and rei
 
 ## Installation
 
-Clone the repository and add it to your load path:
-
 ```emacs-lisp
-(add-to-list 'load-path "/path/to/terraform-mode")
-(require 'terraform-mode)
+(use-package terraform-mode
+  :vc (:url "https://github.com/rnikoopour/terraform-mode"))
 ```
 
 ## Syntax Highlighting
