@@ -2,7 +2,7 @@
 
 A major mode for editing [Terraform](https://www.terraform.io/) and [OpenTofu](https://opentofu.org/) configuration files (`.tf`, `.tfvars`, and `.tofu`).
 
-This is a from-scratch rewrite that removes the dependency on `hcl-mode` and reimplements syntax highlighting using Emacs text properties for context-aware, per-block font-lock.
+This is a from-scratch rewrite that removes the dependency on `hcl-mode` and reimplements syntax highlighting using Emacs text properties for context-aware, per-block font-lock. A core goal of the v2 rewrite is to align with [HCL v2](https://github.com/hashicorp/hcl) semantics.
 
 ## Screenshot
 
