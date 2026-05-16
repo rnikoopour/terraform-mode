@@ -965,6 +965,150 @@ line, regardless of how many brackets opened on that line."
              '(terraform-mode "{" "}" "#" nil nil))
 
 
+(defun terraform--extract-provider (resource-name)
+  "Return the provider associated with a RESOURCE-NAME."
+  (car (split-string resource-name "_")))
+
+(defun terraform--extract-resource (resource-name)
+  "Return the resource associated with a RESOURCE-NAME."
+  (mapconcat #'identity (cdr (split-string resource-name "_")) "_"))
+
+(defun terraform--get-resource-provider-namespace (provider)
+  "Return provider namespace for PROVIDER."
+  (let ((provider-info (shell-command-to-string (concat terraform-command " providers"))))
+    (with-temp-buffer
+      (insert provider-info)
+      (goto-char (point-min))
+      (when (re-search-forward (concat "/\\(.*?\\)/" provider "\\]") nil t)
+        (match-string 1)))))
+
+(defun terraform--get-resource-provider-source (provider &optional dir)
+  "Return Terraform provider source for PROVIDER located in DIR.
+Terraform provider source is searched in `required_provider' declaration
+in current buffer or in other Terraform files located in the same directory
+of the file of current buffer.  If still not found, the provider source is
+searched by running command `terraform providers'.
+The DIR parameter is optional and used only for tests."
+  (goto-char (point-min))
+  ;; find current directory if it's not specified in arguments
+  (if (and (not dir) buffer-file-name) (setq dir (file-name-directory buffer-file-name)))
+  (let (tf-files
+        ;; try to find provider source in current buffer
+        (provider-source (terraform--get-resource-provider-source-in-buffer provider)))
+    ;; check if terraform provider-source was found
+    (when (and (= (length provider-source) 0) dir)
+      ;; find all terraform files of this project. One of them
+      ;; should contain required_provider declaration
+      (setq tf-files (directory-files dir nil "^[[:alnum:][:blank:]_.-]+\\.tf$")))
+    ;; iterate on terraform files until a provider source is found
+    (while (and (= (length provider-source) 0) tf-files)
+      (with-temp-buffer
+        (let* ((file (pop tf-files))
+               (file-path (if dir (concat dir "/" file) file)))
+          (insert-file-contents file-path)
+          ;; look for provider source in a terraform file
+          (setq provider-source (terraform--get-resource-provider-source-in-buffer provider)))))
+    provider-source))
+
+(defun terraform--get-resource-provider-source-in-buffer (provider)
+  "Search and return provider namespace for PROVIDER in current buffer.
+Return nil if not found."
+  (goto-char (point-min))
+  (if (and (re-search-forward "^terraform[[:blank:]]*{" nil t)
+           (re-search-forward "^[[:blank:]]*required_providers[[:blank:]]*{" nil t)
+           (re-search-forward (concat "^[[:blank:]]*" provider "[[:blank:]]*=[[:blank:]]*{") nil t)
+           (re-search-forward "^[[:blank:]]*source[[:blank:]]*=[[:blank:]]*\"\\([a-z/]+\\)\"" nil t))
+      (match-string 1)))
+
+(defun terraform--resource-url (resource doc-dir)
+  "Return the url containing the documentation for RESOURCE using DOC-DIR."
+  (let* ((provider (terraform--extract-provider resource))
+         ;; search provider source in terraform files
+         (provider-source (terraform--get-resource-provider-source provider))
+         (resource-name (terraform--extract-resource resource)))
+    (when (= (length provider-source) 0)
+      ;; fallback to old method with terraform providers command
+      (setq provider-source (concat
+                             (terraform--get-resource-provider-namespace provider)
+                             "/" provider)))
+    (if (> (length provider-source) 0)
+        (format "https://registry.terraform.io/providers/%s/latest/docs/%s/%s"
+                provider-source doc-dir resource-name)
+      (user-error "Can not determine the provider source for %s" provider))))
+
+(defun terraform--resource-url-at-point ()
+  (save-excursion
+    (goto-char (line-beginning-position))
+    (unless (looking-at-p "^resource\\|^data")
+      (re-search-backward "^resource\\|^data" nil t))
+    (let ((doc-dir (if (equal (word-at-point) "data") "data-sources" "resources")))
+      (forward-symbol 2)
+      (terraform--resource-url (thing-at-point 'symbol) doc-dir))))
+
+(defun terraform-open-doc ()
+  "Open a browser at the URL documenting the resource at point."
+  (interactive)
+  (browse-url (terraform--resource-url-at-point)))
+
+(defun terraform-kill-doc-url ()
+  "Kill the URL documenting the resource at point (i.e. copy it to the clipboard)."
+  (interactive)
+  (let* ((url (substring-no-properties (terraform--resource-url-at-point))))
+    (kill-new url)
+    (message "Copied URL: %s" url)))
+
+(defun terraform-insert-doc-in-comment ()
+  "Insert a comment containing an URL documenting the resource at point."
+  (interactive)
+  (let ((doc-url (terraform--resource-url-at-point)))
+    (save-excursion
+      (unless (looking-at-p "^resource\\|^data")
+        (re-search-backward "^resource\\|^data" nil t))
+      (insert (format "# %s\n" doc-url)))))
+
+(defun terraform--outline-level ()
+  "Return the depth to which a statement is nested in the outline.
+
+See also `outline-level'."
+  (or (cdr (assoc (match-string 1) outline-heading-alist))
+      (- (match-end 1) (match-beginning 1))))
+
+(defun terraform--setup-outline-mode ()
+  (set (make-local-variable 'outline-level) #'terraform--outline-level)
+
+  (let ((terraform-keywords
+         (list "terraform" "locals" "required_providers" "atlas" "connection"
+               "backend" "provider" "provisioner"
+               "variable" "module" "output"
+               "data" "resource")))
+    (set (make-local-variable 'outline-regexp)
+         (concat
+          "^"
+          (regexp-opt terraform-keywords 'symbols)
+          "[[:blank:]].*{[[:blank:]]*$"))
+    (set (make-local-variable 'outline-heading-alist)
+         (mapcar
+          (lambda (item) (cons item 2))
+          terraform-keywords))))
+
+(defun terraform-toggle-or-indent (&optional arg)
+  "Toggle visibility of block under point or indent.
+
+If the point is not at the heading, call
+`indent-for-tab-command'."
+  (interactive)
+  (if (and outline-minor-mode (outline-on-heading-p))
+      (outline-toggle-children)
+    (indent-for-tab-command arg)))
+
+(defvar terraform-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-c C-d C-w") #'terraform-open-doc)
+    (define-key map (kbd "C-c C-d C-c") #'terraform-kill-doc-url)
+    (define-key map (kbd "C-c C-d C-r") #'terraform-insert-doc-in-comment)
+    (define-key map (kbd "C-c C-f") #'outline-toggle-children)
+    map))
+
 ;;;###autoload
 (define-derived-mode terraform-mode prog-mode "Terraform"
   "Major mode for editing Terraform files."
